@@ -23,6 +23,15 @@ export function useStats() {
   ]
 }
 
+// Mots mis en valeur en orange dans le grand titre (le titre est modifiable par l'administrateur)
+const HIGHLIGHT = /(numériques?|formations?|certifications?|certificats?)/gi
+
+function highlight(text) {
+  return text.split(HIGHLIGHT).map((part, i) =>
+    i % 2 === 1 ? <span key={i} className="text-flame-500">{part}</span> : part,
+  )
+}
+
 function Hero() {
   const s = useSettings()
   const academy = useAcademy()
@@ -39,12 +48,12 @@ function Hero() {
           <h1 className="text-[34px] leading-[1.1] font-extrabold tracking-tight text-ink sm:text-5xl lg:text-[56px]">
             {rest.length ? (
               <>
-                {first}.
+                {highlight(first)}.
                 <br />
-                <span className="text-brand-600">{rest.join('. ')}</span>
+                <span className="text-brand-600">{highlight(rest.join('. '))}</span>
               </>
             ) : (
-              first
+              highlight(first)
             )}
           </h1>
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-gray-700">{s['home.heroSubtitle']}</p>

@@ -47,25 +47,44 @@ export function SearchBar({ className, autoFocus, onSubmitted }) {
 function ExploreMenu({ categories }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
+  const closeTimer = useRef(null)
   const { pathname } = useLocation()
-  const { data: courses } = useApi(open ? '/courses' : null)
+  const { data: courses } = useApi('/courses')
   useEffect(() => setOpen(false), [pathname])
   useEffect(() => {
     const close = (e) => ref.current && !ref.current.contains(e.target) && setOpen(false)
     document.addEventListener('mousedown', close)
-    return () => document.removeEventListener('mousedown', close)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      clearTimeout(closeTimer.current)
+    }
   }, [])
+
+  // Ouverture au survol de la souris ; petit délai à la fermeture pour laisser le temps d'atteindre le menu
+  const show = () => {
+    clearTimeout(closeTimer.current)
+    setOpen(true)
+  }
+  const hide = () => {
+    clearTimeout(closeTimer.current)
+    closeTimer.current = setTimeout(() => setOpen(false), 200)
+  }
+
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative" ref={ref} onMouseEnter={show} onMouseLeave={hide}>
       <button
         onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}
         aria-expanded={open}
-        className="flex h-11 items-center gap-1.5 rounded-lg px-3 text-[15px] font-semibold text-brand-700 hover:bg-brand-50"
+        aria-haspopup="true"
+        className={cx('flex h-11 items-center gap-1.5 rounded-lg px-3 text-[15px] font-semibold text-brand-700 hover:bg-brand-50', open && 'bg-brand-50')}
       >
         Explorer <ChevronDown className={cx('size-4 transition', open && 'rotate-180')} />
       </button>
       {open && (
-        <div className="absolute top-full left-0 z-40 mt-2 grid w-[640px] grid-cols-[1fr_1.1fr] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
+        // Le pt-2 (au lieu d'une marge) évite que le menu se ferme en passant du bouton au menu
+        <div className="absolute top-full left-0 z-40 pt-2">
+        <div className="grid w-[640px] grid-cols-[1fr_1.1fr] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
           <div className="border-r border-gray-100 p-3">
             <p className="px-3 pt-2 pb-2 text-xs font-bold tracking-wide text-gray-500 uppercase">Domaines</p>
             {categories.map((c) => (
@@ -89,6 +108,7 @@ function ExploreMenu({ categories }) {
               Voir tout le catalogue →
             </Link>
           </div>
+        </div>
         </div>
       )}
     </div>
