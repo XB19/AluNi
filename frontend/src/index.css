@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* Vert CDEJ (logo) */
+  --color-brand-50: #edf8ef;
+  --color-brand-100: #d4eeda;
+  --color-brand-200: #aadcb5;
+  --color-brand-300: #77c38a;
+  --color-brand-400: #45a660;
+  --color-brand-500: #258a41;
+  --color-brand-600: #1a6f33;
+  --color-brand-700: #16592b;
+  --color-brand-800: #134725;
+  --color-brand-900: #0f3a1f;
+  --color-brand-950: #07210f;
+
+  /* Flamme (logo) */
+  --color-flame-50: #fff5ee;
+  --color-flame-100: #ffe6d4;
+  --color-flame-200: #ffc9a6;
+  --color-flame-400: #fb8a3c;
+  --color-flame-500: #f26a1b;
+  --color-flame-600: #d9530f;
+  --color-flame-700: #b4400e;
+
+  /* Or de la croix */
+  --color-gold-100: #f4efe0;
+  --color-gold-400: #c9b67c;
+  --color-gold-500: #b5a36a;
+  --color-gold-700: #7d6f42;
+
+  --color-ink: #1b1f1d;
+}
+
+@layer base {
+  html { -webkit-tap-highlight-color: transparent; }
+  body { @apply bg-white text-ink antialiased; font-family: var(--font-sans); }
+  :focus-visible { @apply outline-2 outline-offset-2 outline-brand-500; }
+  ::selection { @apply bg-brand-100; }
+}
+
+@layer components {
+  .container-page { @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8; }
+  .input {
+    @apply w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[15px] text-ink placeholder:text-gray-400
+      transition focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:bg-gray-50;
+  }
+  .label { @apply mb-1.5 block text-sm font-semibold text-gray-800; }
+  .card { @apply min-w-0 rounded-2xl border border-gray-200 bg-white; }
+  .prose-lesson h2 { @apply mt-8 mb-3 text-xl font-bold text-ink; }
+  .prose-lesson h3 { @apply mt-6 mb-2 text-lg font-bold text-ink; }
+  .prose-lesson p { @apply mb-4 leading-relaxed text-gray-700; }
+  .prose-lesson ul { @apply mb-4 list-disc space-y-1.5 pl-6 text-gray-700; }
+  .prose-lesson ol { @apply mb-4 list-decimal space-y-1.5 pl-6 text-gray-700; }
+  .prose-lesson strong { @apply font-semibold text-ink; }
+  .prose-lesson code { @apply rounded bg-gray-100 px-1.5 py-0.5 text-[0.9em]; }
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+@media print {
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; inset: 0; margin: 0; box-shadow: none !important; }
+  @page { size: A4 landscape; margin: 0; }
+}

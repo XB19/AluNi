@@ -1,0 +1,50 @@
+# ALuNI – plateforme complète : base PostgreSQL + API Spring Boot + interface React (Nginx)
+# Démarrage : copier .env.example en .env, renseigner les secrets, puis `docker compose up -d --build`
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: aluni
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Renseignez DB_PASSWORD dans le fichier .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d aluni"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/aluni
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Renseignez JWT_SECRET (32 caractères minimum) dans le fichier .env}
+      CERT_SECRET: ${CERT_SECRET:?Renseignez CERT_SECRET dans le fichier .env}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-Aluni2026!}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      CORS_ORIGINS: ${FRONTEND_URL:-http://localhost}
+      EXAM_ROOM_IPS: ${EXAM_ROOM_IPS:-192.168.}
+    volumes:
+      - uploads:/data/uploads
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${HTTP_PORT:-80}:80"
+
+volumes:
+  pgdata:
+  uploads:

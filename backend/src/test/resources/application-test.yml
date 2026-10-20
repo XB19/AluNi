@@ -1,0 +1,10 @@
+# Base dédiée aux tests, recréée à chaque exécution (voir TestConfig)
+spring:
+  datasource:
+    url: ${TEST_DB_URL:jdbc:postgresql://localhost:5432/aluni_test}
+  flyway:
+    clean-disabled: false
+
+aluni:
+  storage-dir: ./target/test-uploads
+  demo-password: Demo-Test-2026

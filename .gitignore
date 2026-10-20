@@ -1,0 +1,19 @@
+# Secrets
+.env
+**/.env
+
+# Dépendances et compilations
+**/node_modules/
+**/dist/
+**/target/
+
+# Fichiers déposés sur la plateforme
+backend/uploads/
+
+# Éditeurs et systèmes
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+*.log

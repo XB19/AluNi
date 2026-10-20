@@ -1,0 +1,61 @@
+# Les secrets (mot de passe PostgreSQL, clés) sont lus depuis les variables d'environnement
+# ou depuis le fichier local .env (ignoré par git). Voir .env.example.
+spring:
+  application:
+    name: aluni
+  config:
+    import: optional:file:.env[.properties]
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/aluni}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 55MB
+  jackson:
+    default-property-inclusion: non_null
+
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: framework
+  error:
+    include-message: always
+
+springdoc:
+  api-docs:
+    path: /api/docs
+  swagger-ui:
+    path: /api/docs/ui
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+logging:
+  level:
+    tg.cdej.aluni: INFO
+
+aluni:
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  cors-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:4173}
+  jwt-secret: ${JWT_SECRET}
+  jwt-expiration-hours: ${JWT_EXPIRATION_HOURS:12}
+  certificate-secret: ${CERT_SECRET}
+  storage-dir: ${STORAGE_DIR:./uploads}
+  seed-demo-data: ${SEED_DEMO_DATA:true}
+  demo-password: ${DEMO_PASSWORD:Aluni2026!}
+  # Préfixes d'adresses IP des postes de la salle (mode « examen en salle »)
+  exam-room-ip-prefixes: ${EXAM_ROOM_IPS:127.0.0.1,0:0:0:0:0:0:0:1,192.168.}
