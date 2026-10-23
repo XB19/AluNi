@@ -48,6 +48,9 @@ export const TESTIMONIALS = [
   { name: 'Essi A.', role: 'Apprenante, CDEJ Kpévé', text: "Avant, j'avais peur de toucher un ordinateur. Aujourd'hui je tape mes devoirs sur Word et j'ai obtenu mon premier certificat !" },
   { name: 'Komlan D.', role: 'Apprenant, autre CDEJ', text: "La formation HTML m'a donné envie de devenir développeur. Les vidéos sont courtes et je peux revoir les leçons sur mon téléphone." },
   { name: 'Afi M.', role: 'Particulière, Atakpamé', text: 'Grâce au cours sur les réseaux sociaux, ma petite boutique de pagnes a maintenant des clients sur WhatsApp.' },
+  { name: 'Yawo K.', role: 'Apprenant, CDEJ Kpévé', text: "J'ai appris à monter et réparer un ordinateur. Maintenant j'aide les voisins du quartier et je gagne un peu d'argent." },
+  { name: 'Ablavi S.', role: 'Apprenante, autre CDEJ', text: "Le cours de design m'a appris à faire des affiches sur Canva. J'ai réalisé celle de la fête de notre église !" },
+  { name: 'Edem T.', role: 'Étudiant, Kpalimé', text: "L'examen était sérieux et le certificat a un QR code. Mon futur employeur a pu le vérifier en quelques secondes." },
 ]
 
 export const formatDate = (d, opts = { day: 'numeric', month: 'long', year: 'numeric' }) =>

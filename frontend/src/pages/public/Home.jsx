@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { QRCodeSVG } from 'qrcode.react'
 import {
-  ArrowRight, Award, BadgeCheck, BookOpen, Building2, CheckCircle2, ClipboardCheck, GraduationCap, Heart,
+  ArrowRight, Award, BadgeCheck, BookOpen, Building2, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, GraduationCap, Heart,
   Laptop, Lightbulb, Quote, ShieldCheck, Smartphone, User, UserPlus, Users, WifiOff,
 } from 'lucide-react'
 import { TESTIMONIALS, formatDate } from '../../data/constants'
@@ -353,24 +353,114 @@ function Vision() {
   )
 }
 
+const AUTOPLAY_MS = 4000
+
 function Testimonials() {
+  const track = useRef(null)
+  const [paused, setPaused] = useState(false)
+  const [active, setActive] = useState(0)
+  const [pages, setPages] = useState(1)
+
+  // Nombre de cartes visibles et page courante, recalculés au défilement et au redimensionnement
+  const measure = useCallback(() => {
+    const el = track.current
+    if (!el?.firstElementChild) return
+    const step = el.firstElementChild.getBoundingClientRect().width + 20
+    const perView = Math.max(1, Math.round(el.clientWidth / step))
+    setPages(Math.max(1, TESTIMONIALS.length - perView + 1))
+    setActive(Math.round(el.scrollLeft / step))
+  }, [])
+
+  useEffect(() => {
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [measure])
+
+  const goTo = useCallback((index) => {
+    const el = track.current
+    if (!el?.firstElementChild) return
+    const step = el.firstElementChild.getBoundingClientRect().width + 20
+    const perView = Math.max(1, Math.round(el.clientWidth / step))
+    const last = Math.max(0, TESTIMONIALS.length - perView)
+    const target = index > last ? 0 : index < 0 ? last : index
+    el.scrollTo({ left: target * step, behavior: 'smooth' })
+  }, [])
+
+  // Défilement automatique en continu : pause seulement pendant le survol ou le toucher, reprise ensuite
+  useEffect(() => {
+    if (paused) return
+    const id = setInterval(() => !document.hidden && goTo(active + 1), AUTOPLAY_MS)
+    return () => clearInterval(id)
+  }, [paused, active, goTo])
+
+  const resume = useRef(null)
+  const holdOnTouch = () => {
+    setPaused(true)
+    clearTimeout(resume.current)
+  }
+  const releaseTouch = () => {
+    clearTimeout(resume.current)
+    resume.current = setTimeout(() => setPaused(false), 3000)
+  }
+  useEffect(() => () => clearTimeout(resume.current), [])
+
+  const arrow = 'flex size-11 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 active:scale-95'
+
   return (
-    <section className="container-page py-16">
-      <Reveal><SectionTitle center eyebrow="Témoignages" title="Ils ont appris avec ALuNI" /></Reveal>
-      <div className="grid gap-5 md:grid-cols-3">
-        {TESTIMONIALS.map((t, i) => (
-          <Reveal as="figure" key={t.name} delay={i * 120} className="flex flex-col rounded-2xl border border-gray-200 bg-white p-6 transition duration-300 hover:-translate-y-1 hover:border-brand-200 hover:shadow-lg">
-            <Quote className="size-8 text-brand-200" />
-            <blockquote className="mt-3 flex-1 leading-relaxed text-gray-700">« {t.text} »</blockquote>
-            <figcaption className="mt-5 flex items-center gap-3 border-t border-gray-100 pt-4">
-              <Avatar name={t.name} />
-              <div>
-                <p className="font-bold">{t.name}</p>
-                <p className="text-sm text-gray-500">{t.role}</p>
-              </div>
-            </figcaption>
-          </Reveal>
-        ))}
+    <section className="container-page py-16" aria-roledescription="carrousel" aria-label="Témoignages">
+      <Reveal className="relative">
+        <SectionTitle center eyebrow="Témoignages" title="Ils ont appris avec ALuNI" />
+        <div className="absolute right-0 bottom-8 hidden gap-2 md:flex">
+          <button type="button" onClick={() => goTo(active - 1)} className={arrow} aria-label="Témoignage précédent"><ChevronLeft className="size-5" /></button>
+          <button type="button" onClick={() => goTo(active + 1)} className={arrow} aria-label="Témoignage suivant"><ChevronRight className="size-5" /></button>
+        </div>
+      </Reveal>
+
+      <div
+        className="relative"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        onTouchStart={holdOnTouch}
+        onTouchEnd={releaseTouch}
+      >
+        <div ref={track} onScroll={measure} className="no-scrollbar -my-2 flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth py-2">
+          {TESTIMONIALS.map((t, i) => (
+            <figure
+              key={t.name}
+              aria-roledescription="diapositive"
+              aria-label={`${i + 1} sur ${TESTIMONIALS.length}`}
+              className="flex w-[85%] shrink-0 snap-start flex-col rounded-2xl border border-gray-200 bg-white p-6 transition duration-300 hover:border-brand-200 hover:shadow-lg sm:w-[calc((100%-20px)/2)] lg:w-[calc((100%-40px)/3)]"
+            >
+              <Quote className="size-8 text-brand-200" />
+              <blockquote className="mt-3 flex-1 leading-relaxed text-gray-700">« {t.text} »</blockquote>
+              <figcaption className="mt-5 flex items-center gap-3 border-t border-gray-100 pt-4">
+                <Avatar name={t.name} />
+                <div>
+                  <p className="font-bold">{t.name}</p>
+                  <p className="text-sm text-gray-500">{t.role}</p>
+                </div>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-6 flex items-center justify-center gap-4">
+        <button type="button" onClick={() => goTo(active - 1)} className={cx(arrow, 'md:hidden')} aria-label="Témoignage précédent"><ChevronLeft className="size-5" /></button>
+        <div className="flex gap-2">
+          {Array.from({ length: pages }, (_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => goTo(i)}
+              aria-label={`Aller au témoignage ${i + 1}`}
+              aria-current={i === active}
+              className={cx('h-2.5 rounded-full transition-all duration-300', i === active ? 'w-7 bg-brand-600' : 'w-2.5 bg-gray-300 hover:bg-gray-400')}
+            />
+          ))}
+        </div>
+        <button type="button" onClick={() => goTo(active + 1)} className={cx(arrow, 'md:hidden')} aria-label="Témoignage suivant"><ChevronRight className="size-5" /></button>
       </div>
     </section>
   )
