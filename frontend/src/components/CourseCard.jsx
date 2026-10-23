@@ -45,12 +45,12 @@ export function CourseCover({ course, className, iconSize = 'size-12' }) {
   return (
     <div className={cx('relative overflow-hidden bg-gradient-to-br', course.categoryColor ?? 'from-brand-500 to-brand-700', className)}>
       {image ? (
-        <img src={image} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
+        <img src={image} alt="" loading="lazy" className="absolute inset-0 size-full object-cover transition duration-500 group-hover:scale-105" />
       ) : (
         <>
           <div className="absolute -top-8 -right-8 size-32 rounded-full bg-white/10" />
           <div className="absolute -bottom-10 -left-6 size-28 rounded-full bg-black/10" />
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center justify-center transition duration-500 group-hover:scale-110">
             <CategoryIcon icon={course.categoryIcon} className={cx('text-white/90 drop-shadow', iconSize)} />
           </div>
         </>
@@ -63,7 +63,7 @@ export function CourseCard({ course, progress, to }) {
   return (
     <Link
       to={to ?? `/formations/${course.slug}`}
-      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:shadow-lg"
+      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white transition duration-300 hover:-translate-y-1 hover:border-brand-200 hover:shadow-xl focus-visible:shadow-lg"
     >
       <div className="relative">
         <CourseCover course={course} className="aspect-[16/9]" />

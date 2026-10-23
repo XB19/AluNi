@@ -121,7 +121,7 @@ function PracticalUpload({ lesson, onUploaded }) {
         <Upload className="size-4" />{busy ? 'Envoi en cours…' : s ? 'Déposer une nouvelle version' : 'Déposer mon travail'}
         <input type="file" className="sr-only" onChange={(e) => upload(e.target.files?.[0])} accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.html,.css,.js,.py,.txt" />
       </label>
-      <p className="mt-2 text-xs text-gray-500">Photo, capture d'écran ou document (20 Mo maximum).</p>
+      <p className="mt-2 text-xs text-gray-500">Photo, capture d'écran ou document (50 Mo maximum).</p>
       <div className="mt-2"><FormError error={error} /></div>
     </div>
   )

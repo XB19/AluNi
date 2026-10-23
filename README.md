@@ -63,7 +63,7 @@ Au premier démarrage sur une base vide, des **données de démonstration** sont
 | Formateur | `koffi@aluni.tg` |
 | Apprenant | `kossi@exemple.tg` ou le téléphone `90 11 22 33` |
 
-En production, mettez `SEED_DEMO_DATA=false` **avant** le premier démarrage, puis créez le compte administrateur.
+En production, mettez `SEED_DEMO_DATA=false` **avant** le premier démarrage et renseignez `ADMIN_EMAIL` / `ADMIN_PASSWORD` (et éventuellement `ADMIN_FIRST_NAME` / `ADMIN_LAST_NAME`) : le premier compte administrateur est alors créé automatiquement au démarrage. L'administrateur crée ensuite les autres comptes depuis la plateforme.
 
 - Documentation de l'API (Swagger) : http://localhost:8080/api/docs/ui
 - Santé du service : http://localhost:8080/actuator/health

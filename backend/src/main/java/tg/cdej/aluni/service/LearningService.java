@@ -303,7 +303,7 @@ public class LearningService {
         s.setLesson(lesson);
         s.setTask(lesson.getTitle());
         s.setFileName(file.getOriginalFilename() == null ? "fichier" : file.getOriginalFilename());
-        s.setStoredFile(storage.storePrivate(file, "submissions", StorageService.DOCUMENTS));
+        s.setStoredFile(storage.storePrivate(file, "submissions", StorageService.SUBMISSIONS));
         s.setStatus(SubmissionStatus.A_CORRIGER);
         submissions.save(s);
         notifications.notify(course.getTrainer(), NotificationType.GRADE, "Exercice à corriger",

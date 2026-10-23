@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -81,6 +82,7 @@ import tg.cdej.aluni.service.StorageService;
  * À désactiver en production avec SEED_DEMO_DATA=false.
  */
 @Component
+@Order(1)
 public class DemoDataSeeder implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DemoDataSeeder.class);
@@ -457,7 +459,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         }
 
         // Comptes
-        user("Abla", "Sossou", "92334455", "coordination@aluni.tg", Role.ADMIN, null, "CDEJ TG0157", "F", null, "2025-11-01");
+        user("Michel", "KOUMAI", "92334455", "coordination@aluni.tg", Role.ADMIN, null, "CDEJ TG0157", "M", null, "2025-11-01");
         User koffi = trainer("Koffi", "Amegah", "91223344", "koffi@aluni.tg", "Formateur en bureautique",
                 "Enseignant en informatique depuis 8 ans, il accompagne les jeunes dans leurs premiers pas avec l'ordinateur.");
         User ama = trainer("Ama", "Kpodar", "93112233", "ama@aluni.tg", "Développeuse web",

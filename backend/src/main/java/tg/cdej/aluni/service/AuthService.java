@@ -32,6 +32,7 @@ import tg.cdej.aluni.security.TokenService;
 public class AuthService {
 
     private static final Duration CODE_VALIDITY = Duration.ofMinutes(15);
+    private static final Duration RESEND_DELAY = Duration.ofMinutes(1);
     private static final int MAX_CODE_ATTEMPTS = 5;
     private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -156,6 +157,10 @@ public class AuthService {
     public void forgotPassword(String channel, String identifier) {
         // Réponse identique que le compte existe ou non (ne révèle pas les comptes existants)
         findByIdentifier(identifier).filter(u -> u.getStatus() == AccountStatus.ACTIF).ifPresent(u -> {
+            // Un seul code par minute : évite l'envoi de SMS / e-mails en rafale
+            boolean recent = resetCodes.findFirstByUserAndUsedFalseOrderByCreatedAtDesc(u)
+                    .filter(last -> last.getCreatedAt().isAfter(Instant.now().minus(RESEND_DELAY))).isPresent();
+            if (recent) return;
             String code = String.format("%06d", RANDOM.nextInt(1_000_000));
             PasswordResetCode reset = new PasswordResetCode();
             reset.setUser(u);

@@ -6,6 +6,7 @@ import { HOME_BY_ROLE, useAuth } from '../context/AuthContext'
 import { useAcademy } from '../context/SettingsContext'
 import { CategoryIcon, Logo } from '../components/CourseCard'
 import { PageLoader } from '../components/PageLoader'
+import { BackToTop, useScrolled } from '../components/Motion'
 import { Avatar, Button, cx } from '../components/ui'
 import { FacebookIcon, WhatsAppIcon, YoutubeIcon } from '../components/BrandIcons'
 import { fileUrl } from '../api/client'
@@ -121,9 +122,10 @@ function Header({ categories }) {
   const [drawer, setDrawer] = useState(false)
   const { pathname } = useLocation()
   useEffect(() => setDrawer(false), [pathname])
+  const scrolled = useScrolled(40)
 
   return (
-    <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/95 backdrop-blur">
+    <header className={cx('sticky top-0 z-30 border-b bg-white/95 backdrop-blur transition-shadow duration-300', scrolled ? 'border-transparent shadow-lg shadow-black/5' : 'border-gray-200')}>
       {/* Bandeau supérieur, comme Coursera */}
       <div className="hidden bg-brand-800 text-[13px] text-brand-50 md:block">
         <div className="container-page flex h-9 items-center justify-between">
@@ -141,7 +143,7 @@ function Header({ categories }) {
         </div>
       </div>
 
-      <div className="container-page flex h-16 items-center gap-3 lg:h-[72px]">
+      <div className={cx('container-page flex h-16 items-center gap-3 transition-[height] duration-300', !scrolled && 'lg:h-[72px]')}>
         <Link to="/" aria-label="Accueil ALuNI" className="shrink-0"><Logo /></Link>
         <div className="ml-2 hidden lg:block"><ExploreMenu categories={categories} /></div>
         <SearchBar className="mx-2 hidden max-w-md flex-1 md:block" />
@@ -294,6 +296,7 @@ export function WhatsAppButton() {
 
 export default function PublicLayout() {
   const { data: categories } = useApi('/categories')
+  const { pathname } = useLocation()
   const cats = categories ?? []
   return (
     <div className="flex min-h-screen flex-col">
@@ -301,10 +304,14 @@ export default function PublicLayout() {
       <Header categories={cats} />
       <main id="contenu" className="flex-1">
         <Suspense fallback={<PageLoader />}>
-          <Outlet />
+          {/* Fondu à chaque changement de page */}
+          <div key={pathname} className="animate-fade-in">
+            <Outlet />
+          </div>
         </Suspense>
       </main>
       <Footer categories={cats} />
+      <BackToTop />
       <WhatsAppButton />
     </div>
   )

@@ -92,7 +92,7 @@ export function Field({ label, hint, error, children, className }) {
 
 export function SectionTitle({ eyebrow, title, subtitle, action, center = false }) {
   return (
-    <div className={cx('mb-8 flex flex-wrap items-end justify-between gap-4', center && 'flex-col items-center text-center')}>
+    <div className={cx('mb-8 flex gap-4', center ? 'flex-col items-center text-center' : 'flex-wrap items-end justify-between')}>
       <div className={cx(center && 'max-w-2xl')}>
         {eyebrow && <p className="mb-2 text-sm font-bold tracking-wide text-flame-600 uppercase">{eyebrow}</p>}
         <h2 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{title}</h2>

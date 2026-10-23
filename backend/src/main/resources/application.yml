@@ -57,5 +57,10 @@ aluni:
   storage-dir: ${STORAGE_DIR:./uploads}
   seed-demo-data: ${SEED_DEMO_DATA:true}
   demo-password: ${DEMO_PASSWORD:Aluni2026!}
+  # Premier compte administrateur (créé au démarrage s'il n'en existe aucun)
+  admin-email: ${ADMIN_EMAIL:}
+  admin-password: ${ADMIN_PASSWORD:}
+  admin-first-name: ${ADMIN_FIRST_NAME:Administrateur}
+  admin-last-name: ${ADMIN_LAST_NAME:ALuNI}
   # Préfixes d'adresses IP des postes de la salle (mode « examen en salle »)
   exam-room-ip-prefixes: ${EXAM_ROOM_IPS:127.0.0.1,0:0:0:0:0:0:0:1,192.168.}

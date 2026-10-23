@@ -42,8 +42,8 @@ public class SettingsService {
         d.put("contact.mapLat", "6.73");
         d.put("contact.mapLng", "1.10");
         d.put("certificate.template", "classique");
-        d.put("certificate.signatory", "A. Sossou");
-        d.put("certificate.signatoryTitle", "La Coordinatrice de l'Académie");
+        d.put("certificate.signatory", "Michel KOUMAI");
+        d.put("certificate.signatoryTitle", "Le Coordinateur, Responsable de l'Académie");
         DEFAULTS = Map.copyOf(d);
     }
 

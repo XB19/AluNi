@@ -25,6 +25,12 @@ class UnitTests {
     }
 
     @Test
+    void publicUploadsCannotRunScripts() {
+        assertThat(StorageService.DOCUMENTS).doesNotContain("html", "htm", "js", "svg", "css");
+        assertThat(StorageService.IMAGES).doesNotContain("svg");
+    }
+
+    @Test
     void slugsAreReadable() {
         assertThat(Texts.slugify("Créer son premier site web (HTML & CSS)")).isEqualTo("creer-son-premier-site-web-html-css");
     }

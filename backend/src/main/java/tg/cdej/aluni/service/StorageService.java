@@ -28,7 +28,15 @@ import tg.cdej.aluni.config.AppProperties;
 public class StorageService {
 
     public static final Set<String> IMAGES = Set.of("jpg", "jpeg", "png", "webp", "gif");
+    /**
+     * Supports de cours publics. Pas de .html, .js ni .svg : servis sur le même domaine que le site,
+     * ils pourraient exécuter du code dans le navigateur des utilisateurs.
+     */
     public static final Set<String> DOCUMENTS = Set.of("jpg", "jpeg", "png", "webp", "gif", "pdf", "doc", "docx",
+            "xls", "xlsx", "ppt", "pptx", "txt", "zip", "mp4", "webm", "mp3");
+
+    /** Exercices déposés par les apprenants : privés et toujours téléchargés (jamais affichés), le code source est permis. */
+    public static final Set<String> SUBMISSIONS = Set.of("jpg", "jpeg", "png", "webp", "gif", "pdf", "doc", "docx",
             "xls", "xlsx", "ppt", "pptx", "txt", "zip", "html", "css", "js", "py", "mp4", "webm", "mp3");
 
     private final Path root;

@@ -9,9 +9,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 
+import tg.cdej.aluni.repository.PasswordResetCodeRepository;
+
 class AuthAndSecurityTest extends IntegrationTest {
+
+    @Autowired
+    private PasswordResetCodeRepository resetCodes;
 
     @Test
     void registerThenLoginWithPhone() throws Exception {
@@ -27,6 +33,17 @@ class AuthAndSecurityTest extends IntegrationTest {
                 .content(body(Map.of("identifier", "99112233", "password", "MotDePasse1"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.user.phone").value("99 11 22 33"));
+    }
+
+    @Test
+    void recoveryCodesAreLimitedToOnePerMinute() throws Exception {
+        long before = resetCodes.count();
+        for (int i = 0; i < 3; i++) {
+            mvc.perform(post("/api/auth/forgot-password").contentType(MediaType.APPLICATION_JSON)
+                    .content(body(Map.of("channel", "sms", "identifier", "97123456"))))
+                    .andExpect(status().isOk());
+        }
+        assertThat(resetCodes.count()).isEqualTo(before + 1);
     }
 
     @Test

@@ -5,7 +5,8 @@ import { CERT_TYPES, LEVELS } from '../../data/constants'
 import { useApi } from '../../api/useApi'
 import { qs } from '../../api/client'
 import { CourseCard } from '../../components/CourseCard'
-import { Button, EmptyState, ErrorState, Loading } from '../../components/ui'
+import { Button, EmptyState, ErrorState } from '../../components/ui'
+import { CourseGridSkeleton } from '../../components/Motion'
 
 const DURATIONS = [
   { id: 'court', label: 'Moins de 15 h', test: (h) => h < 15 },
@@ -132,12 +133,16 @@ export default function Catalog() {
           )}
 
           {coursesState.loading && !coursesState.data ? (
-            <Loading />
+            <CourseGridSkeleton />
           ) : coursesState.error ? (
             <ErrorState error={coursesState.error} onRetry={coursesState.reload} />
           ) : results.length ? (
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-              {results.map((c) => <CourseCard key={c.slug} course={c} />)}
+              {results.map((c, i) => (
+                <div key={`${params.toString()}-${sort}-${c.slug}`} className="animate-fade-up" style={{ '--delay': `${Math.min(i, 8) * 60}ms` }}>
+                  <CourseCard course={c} />
+                </div>
+              ))}
             </div>
           ) : (
             <EmptyState icon={SearchX} title="Aucune formation trouvée" text="Essayez un autre mot-clé ou retirez quelques filtres."

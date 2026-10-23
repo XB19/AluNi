@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { CheckCircle2, Mail, MessageSquare } from 'lucide-react'
 import { api } from '../../api/client'
@@ -15,6 +15,13 @@ export default function ForgotPassword() {
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
   const [resent, setResent] = useState(false)
+  // Le serveur n'envoie qu'un code par minute : on attend avant de proposer un nouvel envoi
+  const [cooldown, setCooldown] = useState(0)
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [cooldown])
 
   const run = async (fn) => {
     setBusy(true)
@@ -38,7 +45,7 @@ export default function ForgotPassword() {
   return (
     <AuthLayout title={titles[step]} subtitle={subtitle}>
       {step === 0 && (
-        <form onSubmit={(e) => { e.preventDefault(); if (identifier.trim()) run(async () => { await sendCode(); setStep(1) }) }} className="space-y-5">
+        <form onSubmit={(e) => { e.preventDefault(); if (identifier.trim()) run(async () => { await sendCode(); setStep(1); setCooldown(60) }) }} className="space-y-5">
           <div className="grid grid-cols-2 gap-3">
             {[['sms', 'Par SMS', MessageSquare], ['email', 'Par e-mail', Mail]].map(([k, l, Icon]) => (
               <button type="button" key={k} onClick={() => { setChannel(k); setIdentifier('') }} aria-pressed={channel === k}
@@ -60,8 +67,9 @@ export default function ForgotPassword() {
             className="input h-14 text-center text-2xl font-bold tracking-[0.6em]" placeholder="••••••" aria-label="Code à 6 chiffres" />
           <FormError error={error} />
           <Button type="submit" size="lg" className="w-full" disabled={busy || code.length !== 6}>{busy ? 'Vérification…' : 'Vérifier le code'}</Button>
-          <button type="button" onClick={() => run(async () => { await sendCode(); setResent(true) })} className="w-full text-sm font-semibold text-brand-700 hover:underline">
-            {resent ? 'Nouveau code envoyé ✓' : 'Renvoyer le code'}
+          <button type="button" disabled={cooldown > 0 || busy} onClick={() => run(async () => { await sendCode(); setResent(true); setCooldown(60) })}
+            className="w-full text-sm font-semibold text-brand-700 hover:underline disabled:text-gray-400 disabled:no-underline">
+            {cooldown > 0 ? `${resent ? 'Nouveau code envoyé ✓ · ' : ''}Renvoyer le code dans ${cooldown} s` : 'Renvoyer le code'}
           </button>
         </form>
       )}
