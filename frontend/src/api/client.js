@@ -19,7 +19,45 @@ export const setToken = (token) => writeStore(TOKEN_KEY, token)
 /** URL absolue d'un fichier servi par le backend (/files/...). */
 export const fileUrl = (path) => (!path ? null : /^https?:/.test(path) ? path : BASE + path)
 
+// Vitrine statique (déploiement Vercel sans serveur) : données publiques capturées dans public/demo/
+// par scripts/snapshot-demo.mjs ; les actions (connexion, inscription, formulaires) sont indisponibles.
+export const STATIC_DEMO = import.meta.env.VITE_DEMO_STATIC === 'true'
+const DEMO_MESSAGE =
+  "Ceci est la version de présentation du site : la connexion, l'inscription et les formulaires seront disponibles à la mise en service de la plateforme."
+
+const fold = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
+const DEMO_SORTS = {
+  rating: (a, b) => b.rating - a.rating,
+  short: (a, b) => a.hours - b.hours,
+  recent: (a, b) => b.id - a.id,
+  popular: (a, b) => b.popular - a.popular || b.learners - a.learners,
+}
+
+async function demoRequest(method, path, signal) {
+  if (method !== 'GET') throw new ApiError(503, DEMO_MESSAGE)
+  const [pathname, query = ''] = path.split('?')
+  let res
+  try {
+    res = await fetch(`/demo${pathname}.json`, { signal })
+  } catch (e) {
+    if (e.name === 'AbortError') throw e
+    throw new ApiError(0, 'Impossible de charger la page. Vérifiez votre connexion internet.')
+  }
+  // Vite et Vercel renvoient index.html pour un fichier absent : on vérifie le type
+  if (!res.ok || !(res.headers.get('content-type') ?? '').includes('json')) {
+    throw new ApiError(pathname.startsWith('/me') || pathname.startsWith('/auth') ? 401 : 404, pathname.startsWith('/certificates') ? 'Certificat introuvable.' : 'Ressource introuvable.')
+  }
+  const data = await res.json()
+  if (pathname !== '/courses') return data
+  const params = new URLSearchParams(query)
+  const term = fold(params.get('q')).trim()
+  const list = term ? data.filter((c) => fold([c.title, c.short, c.categoryName].join(' ')).includes(term)) : [...data]
+  return list.sort(DEMO_SORTS[params.get('sort')] ?? DEMO_SORTS.popular)
+}
+
 async function request(method, path, { body, headers = {}, raw = false, signal } = {}) {
+  if (STATIC_DEMO) return demoRequest(method, path, signal)
   const token = getToken()
   const isForm = body instanceof FormData
   let res

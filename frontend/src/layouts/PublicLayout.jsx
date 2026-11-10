@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, Suspense } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { BadgeCheck, ChevronDown, LayoutDashboard, Mail, MapPin, Menu, Phone, Search, X } from 'lucide-react'
 import { useApi } from '../api/useApi'
@@ -124,6 +125,19 @@ function Header({ categories }) {
   useEffect(() => setDrawer(false), [pathname])
   const scrolled = useScrolled(40)
 
+  // Page figée derrière le menu mobile ; fermeture avec la touche Échap
+  useEffect(() => {
+    if (!drawer) return
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e) => e.key === 'Escape' && setDrawer(false)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = previous
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [drawer])
+
   return (
     <header className={cx('sticky top-0 z-30 border-b bg-white/95 backdrop-blur transition-shadow duration-300', scrolled ? 'border-transparent shadow-lg shadow-black/5' : 'border-gray-200')}>
       {/* Bandeau supérieur, comme Coursera */}
@@ -146,7 +160,7 @@ function Header({ categories }) {
       <div className={cx('container-page flex h-16 items-center gap-3 transition-[height] duration-300', !scrolled && 'lg:h-[72px]')}>
         <Link to="/" aria-label="Accueil ALuNI" className="shrink-0"><Logo /></Link>
         <div className="ml-2 hidden lg:block"><ExploreMenu categories={categories} /></div>
-        <SearchBar className="mx-2 hidden max-w-md flex-1 md:block" />
+        <SearchBar className="mx-2 hidden min-w-0 max-w-md flex-1 lg:block" />
         <nav className="hidden items-center xl:flex" aria-label="Navigation principale">
           {NAV.slice(1, 3).map((n) => (
             <NavLink key={n.to} to={n.to} className={({ isActive }) => cx('rounded-lg px-3 py-2 text-[15px] font-medium hover:bg-gray-100', isActive ? 'text-brand-700' : 'text-gray-700')}>
@@ -172,11 +186,11 @@ function Header({ categories }) {
         </div>
       </div>
 
-      {/* Menu mobile */}
-      {drawer && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setDrawer(false)} />
-          <div className="absolute top-0 right-0 flex h-full w-[86%] max-w-sm flex-col bg-white shadow-xl">
+      {/* Menu mobile : rendu dans <body>, car le flou de l'en-tête (backdrop-filter) piégerait un élément fixed */}
+      {drawer && createPortal(
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
+          <div className="animate-fade-in absolute inset-0 bg-black/50" onClick={() => setDrawer(false)} />
+          <div className="animate-slide-in-right absolute top-0 right-0 flex h-dvh w-[86%] max-w-sm flex-col bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-100 p-4">
               <Logo compact />
               <button onClick={() => setDrawer(false)} className="rounded-lg p-2 hover:bg-gray-100" aria-label="Fermer le menu"><X className="size-6" /></button>
@@ -199,7 +213,7 @@ function Header({ categories }) {
                 </Link>
               ))}
             </div>
-            <div className="grid gap-2 border-t border-gray-100 p-4">
+            <div className="grid gap-2 border-t border-gray-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
               {user ? (
                 <Button to={HOME_BY_ROLE[user.role]}><LayoutDashboard className="size-4" /> Mon espace</Button>
               ) : (
@@ -210,7 +224,8 @@ function Header({ categories }) {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </header>
   )

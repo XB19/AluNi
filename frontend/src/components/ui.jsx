@@ -20,9 +20,13 @@ const BTN_SIZES = {
   lg: 'h-13 px-7 text-base gap-2.5',
 }
 
+// Affichage imposé par l'appelant (ex. « hidden sm:inline-flex ») : le inline-flex par défaut ne doit pas l'écraser
+const OWN_DISPLAY = /(^|\s)(hidden|block|flex|grid|inline-block|inline-flex)(\s|$)/
+
 export function Button({ to, href, variant = 'primary', size = 'md', className, children, ...props }) {
   const cls = cx(
-    'inline-flex items-center justify-center rounded-lg font-semibold whitespace-nowrap transition active:scale-[.98] disabled:pointer-events-none disabled:opacity-50',
+    !OWN_DISPLAY.test(className ?? '') && 'inline-flex',
+    'items-center justify-center rounded-lg font-semibold whitespace-nowrap transition active:scale-[.98] disabled:pointer-events-none disabled:opacity-50',
     BTN_VARIANTS[variant],
     BTN_SIZES[size],
     className,

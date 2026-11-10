@@ -111,7 +111,7 @@ function Hero() {
               </div>
             </div>
           </div>
-          <div className="animate-fade-up absolute -top-5 -right-3 sm:-right-8" style={{ '--delay': '900ms' }}>
+          <div className="animate-fade-up absolute -top-5 -right-3 sm:-right-8 lg:-right-3 xl:-right-8" style={{ '--delay': '900ms' }}>
             <div className="animate-float flex items-center gap-3 rounded-2xl bg-white p-3 shadow-xl" style={{ '--delay': '1.5s' }}>
               <QRCodeSVG value={`${window.location.origin}/verifier`} size={44} fgColor="#16592b" />
               <div className="pr-2">
