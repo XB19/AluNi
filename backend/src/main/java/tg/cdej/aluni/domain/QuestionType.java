@@ -4,6 +4,5 @@ public enum QuestionType {
     UNIQUE,
     MULTIPLE,
     VRAIFAUX,
-    COURTE,
-    PRATIQUE
+    COURTE
 }

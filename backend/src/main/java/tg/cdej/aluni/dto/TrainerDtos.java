@@ -10,7 +10,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import tg.cdej.aluni.dto.CourseDtos.CourseRef;
 import tg.cdej.aluni.dto.CourseDtos.TrainerCourseDto;
-import tg.cdej.aluni.dto.LearningDtos.SubmissionDto;
 
 public final class TrainerDtos {
 
@@ -35,15 +34,22 @@ public final class TrainerDtos {
             @Min(1) @Max(20) int points) {
     }
 
-    public record TrainerLearnerDto(Long id, String name, String profile, String center, String phone,
-            CourseRef course, int progress, Integer score, int attempts, int tabSwitches, String status,
+    public record TrainerLearnerDto(Long id, Long enrollmentId, String name, String profile, String center, String phone,
+            CourseRef course, String mode, int progress, Integer score, int attempts, int tabSwitches, String status,
             Instant enrolledAt) {
+    }
+
+    public record ModeRequest(@jakarta.validation.constraints.NotBlank String mode) {
     }
 
     public record FraudAlert(Long learnerId, String name, String course, int tabSwitches) {
     }
 
+    /** Résultat d'examen corrigé automatiquement, affiché au formateur. */
+    public record ExamResultRow(Long learnerId, String name, String course, int score, boolean passed, Instant date) {
+    }
+
     public record TrainerDashboard(Map<String, Object> stats, List<TrainerCourseDto> courses,
-            List<FraudAlert> alerts, List<SubmissionDto> toGrade) {
+            List<FraudAlert> alerts, List<ExamResultRow> results) {
     }
 }

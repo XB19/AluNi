@@ -99,7 +99,6 @@ class ImportTests {
         LessonEdit somme = preview.modules().get(1).lessons().get(0);
         assertThat(somme.title()).isEqualTo("La fonction SOMME");
         assertThat(somme.content()).contains("<strong>=SOMME(A1:A10) additionne les cellules.</strong>");
-        assertThat(preview.modules().get(1).lessons().get(1).practical()).isTrue();
         assertThat(preview.sourceUrl()).startsWith("/files/cours/originaux/");
     }
 
@@ -114,7 +113,7 @@ class ImportTests {
         assertThat(first.lessons().get(0).content()).contains("<ul><li>l'unité centrale").contains("l'écran");
         LessonEdit exercise = preview.modules().get(1).lessons().get(1);
         assertThat(exercise.title()).isEqualTo("Exercice 2.2 : Organiser ses documents");
-        assertThat(exercise.practical()).isTrue();
+        assertThat(exercise.content()).isNotBlank(); // leçon de mise en pratique, sans dépôt à corriger
     }
 
     @Test
@@ -187,17 +186,126 @@ class ImportTests {
     void questionTemplateIsFullyRecognized() {
         List<TextLine> lines = extractor.lines("questions.docx", new ByteArrayInputStream(new ImportTemplates().questions()));
         List<ParsedQuestion> qs = QuestionParser.parse(lines, false);
-        assertThat(qs).hasSize(6);
+        assertThat(qs).hasSize(5);
         assertThat(qs).allSatisfy(q -> assertThat(q.error()).isNull());
-        assertThat(qs).extracting(ParsedQuestion::type).containsExactly("unique", "multiple", "unique", "vraifaux", "courte", "pratique");
-        assertThat(qs.get(0).correct()).containsExactly(1); // réponse en gras
+        assertThat(qs).extracting(ParsedQuestion::type).containsExactly("unique", "multiple", "unique", "vraifaux", "courte");
+        assertThat(qs.get(0).correct()).containsExactly(1); // corrigé en bas : « 1. b »
         assertThat(qs.get(1).correct()).containsExactly(0, 2);
         assertThat(qs.get(1).points()).isEqualTo(2);
         assertThat(qs.get(1).options()).containsExactly("Le clavier", "L'imprimante", "La souris");
-        assertThat(qs.get(2).correct()).containsExactly(1); // « Réponse : b »
+        assertThat(qs.get(2).correct()).containsExactly(1);
         assertThat(qs.get(3).correct()).containsExactly(0);
         assertThat(qs.get(4).accepted()).containsExactly("navigateur", "navigateur web");
-        assertThat(qs.get(5).points()).isEqualTo(5);
+    }
+
+    @Test
+    void exercisesToHandInAreRejectedBecauseTheyCannotBeAutoGraded() {
+        String text = """
+                1. [Pratique] Créez un dossier et déposez une capture.
+                2. Exercice : rédigez une lettre de motivation.
+                3. Le clavier sert à saisir du texte.
+                Réponse : Vrai
+                """;
+        List<TextLine> lines = extractor.lines("quiz.txt", new ByteArrayInputStream(text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        List<ParsedQuestion> qs = QuestionParser.parse(lines, false);
+        assertThat(qs).hasSize(3);
+        assertThat(qs.get(0).error()).contains("corrigé automatiquement");
+        assertThat(qs.get(1).error()).contains("corrigé automatiquement");
+        assertThat(qs.get(2).error()).isNull();
+    }
+
+    private static List<ParsedQuestion> parseText(String text) {
+        return QuestionParser.parse(text.lines().map(l -> new TextLine(l, false)).toList(), false);
+    }
+
+    @Test
+    void answersGroupedAtTheBottomAreMatchedToTheirQuestions() {
+        List<ParsedQuestion> qs = parseText("""
+                Examen final – Initiation à l'informatique
+                1. Quel élément affiche les informations ?
+                a) Le clavier
+                b) L'écran
+                c) La souris
+                2. Une clé USB sert à transporter des fichiers.
+                3. Quel logiciel permet de naviguer sur Internet ? (2 points)
+                4. Quelles touches servent à copier puis coller ?
+                a) Ctrl + C
+                b) Ctrl + P
+                c) Ctrl + V
+                5. Windows est un système d'exploitation.
+
+                RÉPONSES
+                1. b
+                2. Vrai
+                3. navigateur | navigateur web
+                4. a, c
+                5) V
+                """);
+        assertThat(qs).hasSize(5);
+        assertThat(qs).allSatisfy(q -> assertThat(q.error()).isNull());
+        assertThat(qs).extracting(ParsedQuestion::type).containsExactly("unique", "vraifaux", "courte", "multiple", "vraifaux");
+        assertThat(qs.get(0).correct()).containsExactly(1);
+        assertThat(qs.get(1).correct()).containsExactly(0);
+        assertThat(qs.get(2).accepted()).containsExactly("navigateur", "navigateur web");
+        assertThat(qs.get(2).points()).isEqualTo(2);
+        assertThat(qs.get(3).correct()).containsExactly(0, 2);
+        // Le corrigé ne devient pas une question
+        assertThat(qs).extracting(ParsedQuestion::text).noneMatch(t -> t.toLowerCase().contains("réponses"));
+    }
+
+    @Test
+    void compactAnswerKeysAndUnnumberedQuestionsAreSupported() {
+        List<ParsedQuestion> qs = parseText("""
+                Quel élément affiche les informations ?
+                a) Le clavier
+                b) L'écran
+                Une clé USB sert-elle à imprimer des documents ?
+                Vrai
+                Faux
+                Corrigé :
+                1-b ; 2-Faux
+                """);
+        assertThat(qs).hasSize(2);
+        assertThat(qs).allSatisfy(q -> assertThat(q.error()).isNull());
+        assertThat(qs.get(0).correct()).containsExactly(1);
+        assertThat(qs.get(1).correct()).containsExactly(1);
+    }
+
+    @Test
+    void wordNumberedAnswerKeyAndLetterWithTextAreUnderstood() {
+        List<TextLine> lines = List.of(
+                new TextLine("Quel élément affiche les informations ?", false, "decimal", 0),
+                new TextLine("Le clavier", false, "lowerLetter", 1),
+                new TextLine("L'écran", false, "lowerLetter", 1),
+                new TextLine("Combien de bits dans un octet ?", false, "decimal", 0),
+                new TextLine("Réponses", true),
+                new TextLine("b) L'écran", false, "decimal", 0),
+                new TextLine("8", false, "decimal", 0));
+        List<ParsedQuestion> qs = QuestionParser.parse(lines, false);
+        assertThat(qs).hasSize(2);
+        assertThat(qs).allSatisfy(q -> assertThat(q.error()).isNull());
+        assertThat(qs.get(0).correct()).containsExactly(1);
+        assertThat(qs.get(1).accepted()).containsExactly("8");
+    }
+
+    @Test
+    void missingOrWrongAnswersInTheKeyAreReportedPrecisely() {
+        List<ParsedQuestion> qs = parseText("""
+                1. Quel élément affiche les informations ?
+                a) Le clavier
+                b) L'écran
+                2. Quel logiciel permet de naviguer sur Internet ?
+                3. Quelle touche efface un caractère ?
+                a) Entrée
+                b) Retour arrière
+                Réponses
+                1. e
+                3. b
+                """);
+        assertThat(qs).hasSize(3);
+        assertThat(qs.get(0).error()).contains("ne correspond à aucun choix");
+        assertThat(qs.get(1).error()).contains("Réponse absente du corrigé").contains("« 2. … »");
+        assertThat(qs.get(2).error()).isNull();
     }
 
     @Test

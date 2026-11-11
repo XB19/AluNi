@@ -81,7 +81,7 @@ public class QuestionImportService {
                     e.setQuestionCount(0);
                     return e;
                 });
-                questions.findAllById(ids).stream().filter(q -> q.getType() != tg.cdej.aluni.domain.QuestionType.PRATIQUE)
+                questions.findAllById(ids).stream()
                         .forEach(exam.getQuestions()::add);
                 if (exam.getQuestionCount() == 0) exam.setQuestionCount(Math.min(10, exam.getQuestions().size()));
                 exams.save(exam);

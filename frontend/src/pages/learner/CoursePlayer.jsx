@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Link, Navigate, useNavigate, useParams } from 'react-router'
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router'
 import {
-  ArrowLeft, ArrowRight, Award, BookOpen, Check, CheckCircle2, ChevronDown, Circle, Download, FileText, ListChecks,
-  Lock, Menu, RotateCcw, ShieldCheck, Upload, X, XCircle,
+  ArrowLeft, ArrowRight, Award, BookOpen, CalendarClock, Check, CheckCircle2, ChevronDown, Circle, Download, FileText, ListChecks,
+  Lock, Menu, MonitorSmartphone, RotateCcw, ShieldCheck, X, XCircle,
 } from 'lucide-react'
-import { LESSON_TYPES, formatDate } from '../../data/constants'
+import { LESSON_TYPES, formatSession } from '../../data/constants'
 import { api, fileUrl } from '../../api/client'
 import { useApi } from '../../api/useApi'
 import { LESSON_ICONS } from '../public/CourseDetail'
@@ -19,6 +19,9 @@ function flatItems(view) {
   })
   return items
 }
+
+const LOCKED_NOTICE = "Ce module est verrouillé : terminez d'abord toutes les leçons du module précédent."
+const remainingNotice = (n) => `Il vous reste ${n} leçon${n > 1 ? 's' : ''} à terminer dans ce module pour débloquer le suivant.`
 
 function Outline({ view, currentId, onSelect }) {
   const [open, setOpen] = useState(() => view.modules.map(() => true))
@@ -87,47 +90,7 @@ function Outline({ view, currentId, onSelect }) {
   )
 }
 
-function PracticalUpload({ lesson, onUploaded }) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState(null)
-  const s = lesson.submission
-  const upload = async (file) => {
-    if (!file) return
-    setBusy(true)
-    setError(null)
-    try {
-      await api.upload(`/me/lessons/${lesson.id}/submission`, file)
-      onUploaded()
-    } catch (e) {
-      setError(e)
-    } finally {
-      setBusy(false)
-    }
-  }
-  return (
-    <div className="mt-8 rounded-2xl border-2 border-dashed border-flame-200 bg-flame-50/50 p-5">
-      <p className="flex items-center gap-2 font-bold"><Upload className="size-5 text-flame-500" />Exercice pratique à rendre</p>
-      {s && (
-        <div className="mt-3 rounded-xl bg-white p-4 text-sm">
-          <p>Dernier dépôt : <strong>{s.fileName}</strong> le {formatDate(s.date)}</p>
-          {s.status === 'corrige' ? (
-            <p className="mt-1 text-brand-800">Note : <strong>{s.grade}/20</strong>{s.comment ? ` — « ${s.comment} »` : ''}</p>
-          ) : (
-            <Badge tone="amber" className="mt-2">En attente de correction</Badge>
-          )}
-        </div>
-      )}
-      <label className={cx('mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-flame-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-flame-600', busy && 'pointer-events-none opacity-60')}>
-        <Upload className="size-4" />{busy ? 'Envoi en cours…' : s ? 'Déposer une nouvelle version' : 'Déposer mon travail'}
-        <input type="file" className="sr-only" onChange={(e) => upload(e.target.files?.[0])} accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.html,.css,.js,.py,.txt" />
-      </label>
-      <p className="mt-2 text-xs text-gray-500">Photo, capture d'écran ou document (50 Mo maximum).</p>
-      <div className="mt-2"><FormError error={error} /></div>
-    </div>
-  )
-}
-
-function LessonBody({ lesson, onUploaded }) {
+function LessonBody({ lesson }) {
   const file = fileUrl(lesson.fileUrl)
   return (
     <>
@@ -144,7 +107,6 @@ function LessonBody({ lesson, onUploaded }) {
         </div>
       )}
       {lesson.content ? <RichContent html={lesson.content} /> : <p className="text-gray-500">Le contenu de cette leçon sera bientôt disponible.</p>}
-      {lesson.practical && <PracticalUpload lesson={lesson} onUploaded={onUploaded} />}
     </>
   )
 }
@@ -223,6 +185,98 @@ function ModuleQuiz({ module, onFinish, onScored }) {
   )
 }
 
+/**
+ * Formation suivie en salle : le formateur présente le cours à l'Académie.
+ * L'apprenant voit seulement le support à télécharger, les quiz d'entraînement (notés, sans certification)
+ * et l'examen final, ouvert pendant la session programmée par le formateur.
+ */
+function RoomCourse({ view, onScored }) {
+  const exams = useApi(view.examId ? '/me/exams' : null)
+  const [quiz, setQuiz] = useState(null)
+  const exam = (exams.data ?? []).find((x) => x.exam.id === view.examId)
+  const quizzes = view.modules.filter((m) => m.hasQuiz)
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-gray-200 bg-white px-3 sm:px-5">
+        <Link to="/apprenant" className="rounded-lg p-2 hover:bg-gray-100" aria-label="Retour au tableau de bord"><ArrowLeft className="size-5" /></Link>
+        <p className="min-w-0 flex-1 truncate font-bold">{view.course.title}</p>
+        <Badge tone="blue" className="shrink-0"><MonitorSmartphone className="size-3.5" />En salle</Badge>
+      </header>
+
+      <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
+        {quiz ? (
+          <section className="card p-5 sm:p-6">
+            <button onClick={() => setQuiz(null)} className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:underline"><ArrowLeft className="size-4" />Retour à la formation</button>
+            <p className="text-sm font-semibold text-brand-700">{quiz.title}</p>
+            <h1 className="mb-6 text-2xl font-extrabold tracking-tight">Quiz d'entraînement</h1>
+            <ModuleQuiz key={quiz.id} module={quiz} onScored={onScored} onFinish={() => setQuiz(null)} />
+          </section>
+        ) : (
+          <>
+            <p className="text-gray-600">
+              Vous suivez cette formation <strong>en salle</strong> : votre formateur présente le cours à l'Académie.
+              Téléchargez le support, entraînez-vous avec les quiz, puis passez l'examen final lors de la session programmée.
+            </p>
+
+            {/* 1. Support du cours */}
+            <section className="card p-5 sm:p-6">
+              <h2 className="flex items-center gap-2 text-lg font-bold"><FileText className="size-5 text-red-600" />Le cours</h2>
+              {view.supportUrl ? (
+                <div className="mt-4 flex flex-wrap items-center gap-4 rounded-xl border border-gray-200 p-4">
+                  <span className="flex size-12 items-center justify-center rounded-xl bg-red-50 text-red-600"><FileText className="size-6" /></span>
+                  <div className="min-w-0 flex-1"><p className="font-semibold">Support de cours</p><p className="text-sm text-gray-500">Document PDF déposé par votre formateur</p></div>
+                  <Button href={fileUrl(view.supportUrl)} target="_blank" rel="noreferrer"><Download className="size-4" />Télécharger</Button>
+                </div>
+              ) : (
+                <p className="mt-3 rounded-xl bg-gray-50 p-4 text-sm text-gray-600">Votre formateur n'a pas encore déposé le support du cours.</p>
+              )}
+            </section>
+
+            {/* 2. Quiz d'entraînement */}
+            {quizzes.length > 0 && (
+              <section className="card p-5 sm:p-6">
+                <h2 className="flex items-center gap-2 text-lg font-bold"><ListChecks className="size-5 text-flame-500" />Quiz d'entraînement</h2>
+                <p className="mt-1 text-sm text-gray-600">Pour vous entraîner et obtenir une note : ils ne donnent pas de certificat.</p>
+                <ul className="mt-4 divide-y divide-gray-100 rounded-xl border border-gray-200">
+                  {quizzes.map((m) => (
+                    <li key={m.id} className="flex items-center gap-3 px-4 py-3">
+                      <span className="min-w-0 flex-1 font-semibold">{m.title}</span>
+                      {m.quizScore != null && <Badge tone={m.quizScore >= 60 ? 'green' : 'amber'}>{m.quizScore} %</Badge>}
+                      <Button size="sm" variant={m.quizScore != null ? 'outline-gray' : 'secondary'} onClick={() => setQuiz(m)}>{m.quizScore != null ? 'Refaire' : 'Commencer'}</Button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {/* 3. Examen final (certification) */}
+            {view.examId && (
+              <section className="card p-5 sm:p-6">
+                <h2 className="flex items-center gap-2 text-lg font-bold"><ShieldCheck className="size-5 text-brand-600" />Examen final</h2>
+                <p className="mt-1 text-sm text-gray-600">Il donne le certificat de compétence. Une seule tentative, pendant la session programmée par votre formateur.</p>
+                {exams.loading ? <Loading /> : !exam ? null : exam.passed ? (
+                  <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl bg-brand-50 p-4">
+                    <p className="flex-1 font-semibold text-brand-800">Examen réussi 🎉</p>
+                    <Button to={exam.certificateCode ? `/apprenant/certificats/${exam.certificateCode}` : '/apprenant/certificats'} size="sm">Voir mon certificat</Button>
+                  </div>
+                ) : exam.canStart ? (
+                  <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl bg-flame-50 p-4">
+                    <p className="flex-1 font-semibold text-flame-900">{exam.inProgressAttemptId ? 'Votre examen est en cours.' : `Session en cours : ${formatSession(exam.currentSession)}`}</p>
+                    <Button to={`/examen/${exam.exam.id}`} variant="flame">{exam.inProgressAttemptId ? "Reprendre l'examen" : "Composer maintenant"}</Button>
+                  </div>
+                ) : (
+                  <p className="mt-4 flex items-start gap-2 rounded-xl bg-amber-50 p-4 text-sm font-semibold text-amber-900"><CalendarClock className="mt-0.5 size-4 shrink-0" />{exam.blockedReason}</p>
+                )}
+              </section>
+            )}
+          </>
+        )}
+      </main>
+    </div>
+  )
+}
+
 export default function CoursePlayer() {
   const { slug, lessonId } = useParams()
   const navigate = useNavigate()
@@ -232,35 +286,53 @@ export default function CoursePlayer() {
   const [toast, setToast] = useState('')
   const [error, setError] = useState(null)
 
+  const location = useLocation()
+
   useEffect(() => { window.scrollTo(0, 0); setOutline(false); setError(null) }, [lessonId])
+  // Message transmis lors d'une redirection (module verrouillé, leçons restantes)
+  useEffect(() => { if (location.state?.notice) setToast(location.state.notice) }, [location.key, location.state])
 
   if (state.loading && !state.data) return <Loading className="min-h-screen" />
   if (state.error?.status === 403 || state.error?.status === 404) return <Navigate to={`/formations/${slug}`} replace />
   if (state.error) return <div className="p-6"><ErrorState error={state.error} onRetry={state.reload} /></div>
   const view = state.data
+  if (view.mode === 'salle') return <RoomCourse view={view} onScored={state.reload} />
   const items = flatItems(view)
   if (!items.length) return <div className="p-6"><ErrorState error={new Error("Cette formation n'a pas encore de leçon.")} /></div>
 
   const firstOpen = items.find((it) => it.kind === 'lesson' && !it.lesson.completed && it.module.unlocked) ?? items[0]
   const index = Math.max(0, items.findIndex((it) => it.id === (lessonId ?? firstOpen.id)))
   const current = items[index]
-  if (!current.module.unlocked) return <Navigate to={`/apprendre/${slug}/${firstOpen.id}`} replace />
+  if (!current.module.unlocked) return <Navigate to={`/apprendre/${slug}/${firstOpen.id}`} replace state={{ notice: LOCKED_NOTICE }} />
 
   const prev = items[index - 1]
   const next = items[index + 1]
-  const go = (id) => navigate(`/apprendre/${slug}/${id}`)
+  const go = (id, notice) => navigate(`/apprendre/${slug}/${id}`, notice ? { state: { notice } } : undefined)
   const done = current.kind === 'lesson' && current.lesson.completed
   const moduleDoneAfter = current.kind === 'lesson' && current.module.lessons.every((l) => l.completed || String(l.id) === current.id)
-  const nextLocked = next && next.mi !== current.mi && !next.module.unlocked && !(done || moduleDoneAfter)
+  const nextLocked = next && next.mi !== current.mi && !next.module.unlocked && !(current.kind === 'lesson' && moduleDoneAfter)
+
+  // Passe à l'élément suivant d'après une progression à jour : si le module suivant est encore verrouillé,
+  // on ouvre la première leçon restante au lieu d'un renvoi silencieux au début du module.
+  const advance = (fresh) => {
+    const list = flatItems(fresh)
+    const target = list[index + 1]
+    if (!target) return navigate('/apprenant')
+    if (target.module.unlocked) return go(target.id)
+    const pending = list.filter((it) => it.kind === 'lesson' && !it.lesson.completed && it.module.unlocked)
+    if (pending.length) go(pending[0].id, remainingNotice(pending.filter((it) => it.mi === pending[0].mi).length))
+  }
 
   const complete = async () => {
     setBusy(true)
     setError(null)
     try {
       const res = await api.post(`/me/lessons/${current.lesson.id}/complete`, { completed: true })
-      state.reload()
+      // On attend la progression à jour avant de naviguer : sinon le module suivant paraît encore verrouillé
+      const fresh = await api.get(`/me/courses/${slug}/learn`)
+      state.setData(fresh)
       if (res.courseCompleted) setToast('🎉 Formation terminée ! Bravo !')
-      if (next) go(next.id)
+      if (next) advance(fresh)
     } catch (e) {
       setError(e)
     } finally {
@@ -328,9 +400,9 @@ export default function CoursePlayer() {
           )}
           <div className="mt-8">
             {current.kind === 'quiz' ? (
-              <ModuleQuiz key={current.id} module={current.module} onScored={state.reload} onFinish={() => (next ? go(next.id) : navigate('/apprenant'))} />
+              <ModuleQuiz key={current.id} module={current.module} onScored={state.reload} onFinish={() => advance(view)} />
             ) : (
-              <LessonBody lesson={current.lesson} onUploaded={() => { state.reload(); setToast('Travail déposé : votre formateur va le corriger.') }} />
+              <LessonBody lesson={current.lesson} />
             )}
           </div>
 
@@ -339,12 +411,14 @@ export default function CoursePlayer() {
               {done ? (
                 <p className="flex items-center gap-2 font-semibold text-brand-700"><CheckCircle2 className="size-5" />Leçon terminée</p>
               ) : (
-                <Button size="lg" onClick={complete} disabled={busy}><Check className="size-5" />{busy ? 'Enregistrement…' : 'Marquer comme terminée'}</Button>
+                <Button size="lg" onClick={complete} disabled={busy}>
+                  <Check className="size-5" />{busy ? 'Enregistrement…' : next ? 'Terminer et continuer' : 'Terminer la leçon'}
+                </Button>
               )}
               <div className="flex gap-2 sm:ml-auto">
                 {prev && <Button variant="outline-gray" onClick={() => go(prev.id)}><ArrowLeft className="size-4" />Précédent</Button>}
-                {next && (
-                  <Button variant={done ? 'primary' : 'outline-gray'} disabled={nextLocked} onClick={() => go(next.id)}>
+                {next && done && (
+                  <Button disabled={nextLocked} onClick={() => go(next.id)}>
                     Suivant <ArrowRight className="size-4" />
                   </Button>
                 )}
@@ -352,7 +426,7 @@ export default function CoursePlayer() {
             </div>
           )}
           <div className="mt-3"><FormError error={error} /></div>
-          {nextLocked && current.kind === 'lesson' && (
+          {nextLocked && done && current.kind === 'lesson' && (
             <p className="mt-3 flex items-center gap-2 text-sm text-gray-500"><Lock className="size-4" />Terminez toutes les leçons de ce module pour débloquer le suivant.</p>
           )}
           {!next && view.examId && view.progress === 100 && (

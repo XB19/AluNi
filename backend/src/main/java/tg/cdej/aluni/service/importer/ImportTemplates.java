@@ -49,7 +49,8 @@ public class ImportTemplates {
             note(doc, TEMPLATE_NOTE + " Comment préparer votre document : chaque ligne « Module … » devient un module, chaque ligne « Leçon … » devient une leçon, "
                     + "et le texte qui suit forme le contenu de la leçon (paragraphes, listes, tableaux et images sont conservés). "
                     + "Vous pouvez aussi utiliser les styles « Titre 1 » (modules) et « Titre 2 » (leçons) de Word. "
-                    + "Une leçon intitulée « Exercice … » ou « TP … » devient un exercice à rendre. Supprimez ces consignes avant l'import.");
+                    + "Une leçon « Exercice … » ou « TP … » est importée comme une leçon de mise en pratique. Les évaluations se font par les quiz "
+                    + "et l'examen final, corrigés automatiquement. Supprimez ces consignes avant l'import.");
 
             line(doc, "Module 1 : Découvrir l'ordinateur", true, 16, GREEN);
             line(doc, "Leçon 1.1 : Qu'est-ce qu'un ordinateur ?", true, 13, null);
@@ -74,39 +75,42 @@ public class ImportTemplates {
     public byte[] questions() {
         try (XWPFDocument doc = new XWPFDocument()) {
             line(doc, "Questions – Titre de la formation", true, 20, GREEN);
-            note(doc, TEMPLATE_NOTE + " Règles : numérotez chaque question (1., 2., …). Écrivez les choix sous la question (a), b), c)…). "
-                    + "Indiquez la bonne réponse en la mettant en GRAS, en ajoutant * à la fin, ou avec une ligne « Réponse : b ». "
-                    + "Plusieurs bonnes réponses = question à choix multiples. Ajoutez « (2 points) » pour changer le barème. "
-                    + "Supprimez ces consignes et les exemples avant l'import.");
+            note(doc, TEMPLATE_NOTE + " Écrivez d'abord toutes vos questions, numérotées (1., 2., …), avec leurs choix a), b), c)… "
+                    + "Puis, tout en bas, sous le titre « Réponses », la bonne réponse de chaque question avec le même numéro. "
+                    + "La plateforme rattache chaque réponse à sa question et corrige automatiquement : vous n'avez rien à corriger. "
+                    + "Ajoutez « (2 points) » à une question pour changer son barème. Remplacez les exemples par vos questions et "
+                    + "supprimez ces consignes avant l'import.");
 
+            line(doc, "Questions", true, 15, GREEN);
             text(doc, "1. Quel élément permet d'afficher les informations à l'écran ?");
             text(doc, "a) Le clavier");
-            line(doc, "b) L'écran (moniteur)", true, 11, null);
+            text(doc, "b) L'écran (moniteur)");
             text(doc, "c) La souris");
-            note(doc, "→ Bonne réponse en gras.");
 
             text(doc, "2. Lesquels sont des périphériques d'entrée ? (2 points)");
-            text(doc, "a) Le clavier *");
+            text(doc, "a) Le clavier");
             text(doc, "b) L'imprimante");
-            text(doc, "c) La souris *");
-            note(doc, "→ Plusieurs bonnes réponses marquées d'une étoile : question à choix multiples.");
+            text(doc, "c) La souris");
 
             text(doc, "3. Quel raccourci clavier permet de copier ?");
             text(doc, "a) Ctrl + V");
             text(doc, "b) Ctrl + C");
             text(doc, "c) Ctrl + X");
-            text(doc, "Réponse : b");
 
             text(doc, "4. Une clé USB permet de transporter des fichiers d'un ordinateur à un autre.");
-            text(doc, "Réponse : Vrai");
-            note(doc, "→ Réponse Vrai ou Faux : question vrai / faux.");
+            note(doc, "→ Sans choix : la réponse « Vrai » ou « Faux » en fait une question vrai / faux.");
 
             text(doc, "5. Comment appelle-t-on le logiciel qui permet de naviguer sur Internet ?");
-            text(doc, "Réponse : navigateur | navigateur web");
-            note(doc, "→ Sans choix proposés : réponse courte (séparez les variantes acceptées par |).");
+            note(doc, "→ Sans choix : réponse courte, écrite par l'apprenant.");
 
-            text(doc, "6. [Pratique] Créez un dossier « Mes documents » et déposez une capture d'écran. (5 points)");
-            note(doc, "→ Exercice corrigé par le formateur.");
+            line(doc, "Réponses", true, 15, GREEN);
+            text(doc, "1. b");
+            text(doc, "2. a, c");
+            note(doc, "→ Plusieurs lettres : question à choix multiples.");
+            text(doc, "3. b");
+            text(doc, "4. Vrai");
+            text(doc, "5. navigateur | navigateur web");
+            note(doc, "→ Séparez par | les différentes réponses acceptées.");
             return bytes(doc);
         } catch (IOException e) {
             throw new IllegalStateException(e);

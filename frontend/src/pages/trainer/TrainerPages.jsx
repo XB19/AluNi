@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import {
-  AlertTriangle, BookOpen, CheckCircle2, Download, Eye, FileCheck, FileUp, Library, Pencil, Plus, Search, ShieldAlert, Trash2, TrendingUp, Users,
+  AlertTriangle, BookOpen, Download, Eye, FileCheck, FileUp, Library, Pencil, Plus, Search, ShieldAlert, Trash2, TrendingUp, Users,
 } from 'lucide-react'
-import { COURSE_STATUS, PROFILE_LABELS, QUESTION_TYPES, formatDate } from '../../data/constants'
+import { COURSE_STATUS, LEARNING_MODES, PROFILE_LABELS, QUESTION_TYPES, formatDate } from '../../data/constants'
 import { api, qs } from '../../api/client'
 import { useApi } from '../../api/useApi'
 import { CourseCover } from '../../components/CourseCard'
@@ -22,13 +22,13 @@ export function TrainerDashboard() {
     <>
       <PageHeader title="Tableau de bord formateur" subtitle="Suivez vos formations et vos apprenants." actions={<Button to="/formateur/formations/nouvelle"><Plus className="size-4" />Nouvelle formation</Button>} />
       <Async state={state}>
-        {({ stats, courses, alerts, toGrade }) => (
+        {({ stats, courses, alerts, results }) => (
           <>
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               <StatCard icon={Users} label="Apprenants inscrits" value={stats.learners} hint={`+${stats.newThisMonth} ces 30 derniers jours`} />
-              <StatCard icon={BookOpen} label="Formations publiées" value={stats.published} hint={stats.inValidation ? `${stats.inValidation} en validation` : null} tone="blue" />
+              <StatCard icon={BookOpen} label="Formations publiées" value={stats.published} hint={stats.drafts ? `${stats.drafts} en brouillon` : null} tone="blue" />
               <StatCard icon={TrendingUp} label="Taux de réussite" value={stats.successRate != null ? `${stats.successRate} %` : '—'} hint="Examens finaux" tone="gold" />
-              <StatCard icon={FileCheck} label="Épreuves à corriger" value={stats.toGrade} tone="flame" />
+              <StatCard icon={FileCheck} label="Examens corrigés" value={stats.graded} hint="Automatiquement, par la plateforme" tone="flame" />
             </div>
 
             <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -61,7 +61,7 @@ export function TrainerDashboard() {
                       {alerts.map((a) => (
                         <li key={a.learnerId + a.course} className="flex items-center justify-between gap-3 rounded-xl bg-red-50 px-3 py-2.5 text-sm">
                           <span className="min-w-0"><strong>{a.name}</strong><br /><span className="text-gray-600">{a.course}</span></span>
-                          <Badge tone="red">{a.tabSwitches} onglet(s)</Badge>
+                          <Badge tone="red" className="shrink-0 whitespace-nowrap">{a.tabSwitches} onglet(s)</Badge>
                         </li>
                       ))}
                     </ul>
@@ -70,19 +70,19 @@ export function TrainerDashboard() {
                   )}
                 </section>
                 <section className="card p-5">
-                  <h2 className="mb-3 text-lg font-bold">À corriger</h2>
-                  {toGrade.length ? (
-                    <>
-                      {toGrade.map((s) => (
-                        <div key={s.id} className="border-b border-gray-100 py-2.5 text-sm last:border-0">
-                          <p className="font-semibold">{s.learner}</p>
-                          <p className="text-gray-600">{s.task}</p>
-                        </div>
+                  <h2 className="text-lg font-bold">Derniers résultats d'examen</h2>
+                  <p className="mt-0.5 mb-3 text-xs text-gray-500">Corrigés automatiquement : vous n'avez rien à corriger.</p>
+                  {results.length ? (
+                    <ul>
+                      {results.map((r, i) => (
+                        <li key={r.learnerId + '-' + i} className="flex items-center justify-between gap-3 border-b border-gray-100 py-2.5 text-sm last:border-0">
+                          <span className="min-w-0"><strong>{r.name}</strong><br /><span className="text-gray-600">{r.course} · {formatDate(r.date)}</span></span>
+                          <Badge tone={r.passed ? 'green' : 'red'}>{r.score}/100</Badge>
+                        </li>
                       ))}
-                      <Button to="/formateur/corrections" size="sm" variant="secondary" className="mt-3">Corriger maintenant</Button>
-                    </>
+                    </ul>
                   ) : (
-                    <p className="text-sm text-gray-600">Aucune épreuve en attente. 👍</p>
+                    <p className="text-sm text-gray-600">Aucun examen passé pour l'instant.</p>
                   )}
                 </section>
               </div>
@@ -99,7 +99,7 @@ export function TrainerCourses() {
   const state = useApi('/trainer/courses')
   return (
     <>
-      <PageHeader title="Mes formations" subtitle="Créez, modifiez et soumettez vos formations pour publication." actions={<Button to="/formateur/formations/nouvelle"><Plus className="size-4" />Nouvelle formation</Button>} />
+      <PageHeader title="Mes formations" subtitle="Créez, modifiez et publiez vos formations : elles sont visibles dès leur publication." actions={<Button to="/formateur/formations/nouvelle"><Plus className="size-4" />Nouvelle formation</Button>} />
       <Async state={state}>
         {(courses) => (
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -110,7 +110,6 @@ export function TrainerCourses() {
                   <StatusBadge status={c.status} />
                   <h3 className="mt-2 font-bold">{c.title}</h3>
                   <p className="mt-1 text-sm text-gray-500">{c.modules} modules · {c.lessons} leçons · {c.enrolled} apprenant{c.enrolled > 1 ? 's' : ''}</p>
-                  {c.status === 'refusee' && c.reviewComment && <p className="mt-2 rounded-lg bg-red-50 p-2 text-xs text-red-800">Motif : {c.reviewComment}</p>}
                   <div className="mt-4 flex gap-2">
                     <Button to={`/formateur/formations/${c.id}`} size="sm"><Pencil className="size-4" />Modifier</Button>
                     {c.status === 'publiee' && <Button to={`/formations/${c.slug}`} size="sm" variant="ghost"><Eye className="size-4" />Aperçu</Button>}
@@ -211,7 +210,6 @@ export function QuestionForm({ initial, courses, onSaved, formId = 'question-for
           <input value={q.accepted.join(', ')} onChange={(e) => set({ accepted: e.target.value.split(',').map((s) => s.trimStart()) })} className="input" placeholder="navigateur, navigateur web" />
         </Field>
       )}
-      {q.type === 'pratique' && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Exercice corrigé manuellement : marquez une leçon comme « exercice pratique » dans l'éditeur de formation pour que les apprenants déposent leur fichier.</p>}
       <FormError error={error} />
     </form>
   )
@@ -236,7 +234,7 @@ export function QuestionBank() {
 
   return (
     <>
-      <PageHeader title="Banque de questions" subtitle="Les questions servent à composer vos examens et quiz d'entraînement."
+      <PageHeader title="Banque de questions" subtitle="Indiquez la bonne réponse de chaque question : les quiz et l'examen final sont corrigés automatiquement."
         actions={<>
           <Button variant="outline-gray" onClick={() => setImporting(true)} disabled={!courses.length}><FileUp className="size-4" />Importer un document</Button>
           <Button onClick={() => setEditing(blankQuestion(courses[0]?.id ?? ''))} disabled={!courses.length}><Plus className="size-4" />Nouvelle question</Button>
@@ -259,7 +257,7 @@ export function QuestionBank() {
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold">{x.text}</p>
                     <div className="mt-1.5 flex flex-wrap gap-2">
-                      <Badge tone={x.type === 'pratique' ? 'flame' : 'blue'}>{QUESTION_TYPES[x.type]}</Badge>
+                      <Badge tone="blue">{QUESTION_TYPES[x.type]}</Badge>
                       <Badge>{x.course.title}</Badge>
                       <Badge tone={x.module ? 'gold' : 'green'}>{x.module ? `Quiz : ${x.module.title}` : 'Examen final'}</Badge>
                       <Badge>{x.points} pt</Badge>
@@ -295,8 +293,8 @@ export function QuestionBank() {
 
 // ---------------------------------------------------------------- Apprenants
 function exportCsv(rows) {
-  const header = ['Nom', 'Profil', 'Centre', 'Téléphone', 'Formation', 'Progression (%)', 'Meilleure note', 'Tentatives', "Changements d'onglet"]
-  const lines = rows.map((l) => [l.name, PROFILE_LABELS[l.profile] ?? '', l.center ?? '', l.phone ?? '', l.course.title, l.progress, l.score ?? '', l.attempts, l.tabSwitches])
+  const header = ['Nom', 'Profil', 'Centre', 'Téléphone', 'Formation', 'Modalité', 'Progression (%)', 'Meilleure note', 'Tentatives', "Changements d'onglet"]
+  const lines = rows.map((l) => [l.name, PROFILE_LABELS[l.profile] ?? '', l.center ?? '', l.phone ?? '', l.course.title, LEARNING_MODES[l.mode]?.label ?? '', l.progress, l.score ?? '', l.attempts, l.tabSwitches])
   const csv = [header, ...lines].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n')
   const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }))
   const a = document.createElement('a')
@@ -310,24 +308,41 @@ export function TrainerLearners() {
   const courses = useApi('/trainer/courses').data ?? []
   const [course, setCourse] = useState('')
   const state = useApi('/trainer/learners' + qs({ course }))
+  const [toast, setToast] = useState('')
+  // En salle ou en ligne : change la façon de passer l'examen final pour cet apprenant
+  const changeMode = async (l, mode) => {
+    try {
+      await api.patch(`/trainer/enrollments/${l.enrollmentId}/mode`, { mode })
+      state.setData((list) => list.map((x) => (x.enrollmentId === l.enrollmentId ? { ...x, mode } : x)))
+      setToast(`${l.name} suit désormais « ${l.course.title} » ${mode === 'salle' ? 'en salle' : 'en ligne'}.`)
+    } catch (e) {
+      setToast(e.message)
+    }
+  }
   return (
     <>
-      <PageHeader title="Mes apprenants" subtitle="Progression, notes et tentatives de vos apprenants."
+      <PageHeader title="Mes apprenants" subtitle="Progression, notes et modalité de vos apprenants : en salle (examen sur session, une tentative) ou en ligne (tentatives illimitées)."
         actions={<Button variant="outline-gray" disabled={!state.data?.length} onClick={() => exportCsv(state.data)}><Download className="size-4" />Exporter (Excel / CSV)</Button>} />
       <select value={course} onChange={(e) => setCourse(e.target.value)} className="input mb-4 sm:w-80"><option value="">Toutes mes formations</option>{courses.map((c) => <option key={c.id} value={c.slug}>{c.title}</option>)}</select>
       <Async state={state}>
         {(list) =>
           list.length ? (
             <div className="card overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left text-sm">
+              <table className="w-full min-w-[880px] text-left text-sm">
                 <thead className="border-b border-gray-200 bg-gray-50 text-gray-600">
-                  <tr><th className="px-4 py-3 font-semibold">Apprenant</th><th className="font-semibold">Formation</th><th className="w-44 font-semibold">Progression</th><th className="font-semibold">Note</th><th className="font-semibold">Tentatives</th><th className="pr-4 font-semibold">Alertes</th></tr>
+                  <tr><th className="px-4 py-3 font-semibold">Apprenant</th><th className="font-semibold">Formation</th><th className="font-semibold">Modalité</th><th className="w-44 font-semibold">Progression</th><th className="font-semibold">Note</th><th className="font-semibold">Tentatives</th><th className="pr-4 font-semibold">Alertes</th></tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {list.map((l) => (
                     <tr key={`${l.id}-${l.course.id}`}>
                       <td className="px-4 py-3"><p className="font-semibold">{l.name}</p><p className="text-xs text-gray-500">{PROFILE_LABELS[l.profile]}{l.status === 'en-attente' ? ' · inscription en attente' : l.status === 'suspendu' ? ' · compte suspendu' : ''}</p></td>
                       <td className="text-gray-700">{l.course.title}</td>
+                      <td>
+                        <select value={l.mode} onChange={(e) => changeMode(l, e.target.value)} aria-label={`Modalité de ${l.name}`}
+                          className={cx('h-9 rounded-lg border px-2 text-sm font-semibold', l.mode === 'salle' ? 'border-blue-200 bg-blue-50 text-blue-800' : 'border-brand-200 bg-brand-50 text-brand-800')}>
+                          {Object.entries(LEARNING_MODES).map(([k, m]) => <option key={k} value={k}>{m.label}</option>)}
+                        </select>
+                      </td>
                       <td><div className="flex items-center gap-2"><ProgressBar value={l.progress} size="sm" className="w-24" /><span className="font-semibold">{l.progress}%</span></div></td>
                       <td>{l.score != null ? <span className="font-bold">{l.score}/100</span> : '—'}</td>
                       <td>{l.attempts}</td>
@@ -342,88 +357,6 @@ export function TrainerLearners() {
           )
         }
       </Async>
-    </>
-  )
-}
-
-// ---------------------------------------------------------------- Corrections
-export function Grading() {
-  const state = useApi('/trainer/submissions')
-  const [current, setCurrent] = useState(null)
-  const [grade, setGrade] = useState('')
-  const [comment, setComment] = useState('')
-  const [error, setError] = useState(null)
-  const [toast, setToast] = useState('')
-  const [tab, setTab] = useState('a-corriger')
-
-  const open = (s) => {
-    setCurrent(s)
-    setGrade(s.grade ?? '')
-    setComment(s.comment ?? '')
-    setError(null)
-  }
-  const save = async (e) => {
-    e.preventDefault()
-    try {
-      await api.post(`/trainer/submissions/${current.id}/grade`, { grade: Number(grade), comment })
-      setCurrent(null)
-      state.reload()
-      setToast("Note enregistrée, l'apprenant a été notifié")
-    } catch (err) {
-      setError(err)
-    }
-  }
-  const download = (s) => api.download(`/submissions/${s.id}/file`, s.fileName).catch((e) => setToast(e.message))
-
-  return (
-    <>
-      <PageHeader title="Corrections" subtitle="Corrigez les exercices pratiques déposés par vos apprenants." />
-      <div className="mb-4 flex gap-2">
-        {[['a-corriger', 'À corriger'], ['corrige', 'Corrigés']].map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)} className={cx('rounded-full border px-4 py-2 text-sm font-semibold', tab === k ? 'border-brand-600 bg-brand-600 text-white' : 'border-gray-300 text-gray-700')}>{l}</button>
-        ))}
-      </div>
-      <Async state={state}>
-        {(items) => {
-          const list = items.filter((s) => s.status === tab)
-          return list.length ? (
-            <div className="card divide-y divide-gray-100">
-              {list.map((s) => (
-                <div key={s.id} className="flex flex-wrap items-center gap-4 p-4">
-                  <FileCheck className="size-8 shrink-0 text-gray-400" />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold">{s.task}</p>
-                    <p className="text-sm text-gray-600">{s.learner} · {s.course.title} · déposé le {formatDate(s.date)}</p>
-                  </div>
-                  <Button size="sm" variant="ghost" onClick={() => download(s)}><Download className="size-4" />{s.fileName}</Button>
-                  {s.status === 'corrige' ? (
-                    <button onClick={() => open(s)}><Badge tone="green"><CheckCircle2 className="size-3.5" />{s.grade}/20</Badge></button>
-                  ) : (
-                    <Button size="sm" onClick={() => open(s)}>Corriger</Button>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyState icon={FileCheck} title={tab === 'a-corriger' ? 'Aucun travail à corriger' : 'Aucun travail corrigé'} />
-          )
-        }}
-      </Async>
-      <Modal open={!!current} onClose={() => setCurrent(null)} title="Corriger l'exercice"
-        footer={<><Button variant="outline-gray" onClick={() => setCurrent(null)}>Annuler</Button><Button type="submit" form="grade-form">Valider la note</Button></>}>
-        {current && (
-          <form id="grade-form" className="space-y-4" onSubmit={save}>
-            <div className="rounded-xl bg-gray-50 p-4">
-              <p className="font-semibold">{current.learner}</p>
-              <p className="text-sm text-gray-600">{current.task}</p>
-              <button type="button" onClick={() => download(current)} className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:underline"><Download className="size-4" />{current.fileName}</button>
-            </div>
-            <Field label="Note sur 20"><input type="number" min={0} max={20} required value={grade} onChange={(e) => setGrade(e.target.value)} className="input w-32" /></Field>
-            <Field label="Commentaire pour l'apprenant"><textarea rows={3} value={comment} onChange={(e) => setComment(e.target.value)} className="input" placeholder="Points forts, points à améliorer…" /></Field>
-            <FormError error={error} />
-          </form>
-        )}
-      </Modal>
       <Toast message={toast} onDone={() => setToast('')} />
     </>
   )

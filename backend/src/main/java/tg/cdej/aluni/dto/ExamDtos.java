@@ -18,16 +18,31 @@ public final class ExamDtos {
     }
 
     public record ExamSummary(Long id, String title, CourseRef course, int durationMin, int passMark,
-            int attemptsAllowed, LocalDate opensAt, LocalDate closesAt, boolean roomOnly, int questionCount,
-            boolean open, boolean showCorrection) {
+            boolean roomOnly, int questionCount, boolean showCorrection) {
+    }
+
+    /** Créneau d'examen en salle. */
+    public record SessionDto(Long id, Instant startsAt, Instant endsAt, boolean running, boolean past) {
+    }
+
+    /** Programmation d'une session : jour et heures (heure de Lomé). */
+    public record SessionRequest(
+            @NotNull(message = "Choisissez la date de l'examen.") LocalDate date,
+            @NotNull(message = "Indiquez l'heure de début.") java.time.LocalTime start,
+            @NotNull(message = "Indiquez l'heure de fin.") java.time.LocalTime end) {
     }
 
     public record AttemptRow(Long id, int number, Integer score, Boolean passed, Instant submittedAt, String status,
             int tabSwitches) {
     }
 
-    public record MyExam(ExamSummary exam, List<AttemptRow> attempts, int attemptsLeft, boolean passed,
-            Long inProgressAttemptId, int progress, String certificateCode) {
+    /**
+     * Examen final vu par l'apprenant, selon sa modalité (« salle » ou « en-ligne »).
+     * attemptsLeft : null = tentatives illimitées (en ligne). canStart / blockedReason : décision du serveur.
+     */
+    public record MyExam(ExamSummary exam, String mode, List<AttemptRow> attempts, Integer attemptsLeft, boolean passed,
+            Long inProgressAttemptId, int progress, String certificateCode, SessionDto currentSession,
+            SessionDto nextSession, boolean canStart, String blockedReason) {
     }
 
     public record AttemptOption(int index, String text) {
@@ -60,7 +75,8 @@ public final class ExamDtos {
     public record CertificateRef(String code, String status) {
     }
 
-    public record AttemptResult(Long attemptId, int score, boolean passed, int passMark, int attemptsLeft,
+    /** attemptsLeft : null = tentatives illimitées (en ligne) ; canRetry : l'apprenant peut repasser l'examen. */
+    public record AttemptResult(Long attemptId, int score, boolean passed, int passMark, String mode, Integer attemptsLeft, boolean canRetry,
             CertificateRef certificate, List<Correction> corrections, String courseSlug, String examTitle) {
     }
 
@@ -71,9 +87,6 @@ public final class ExamDtos {
             @Min(1) int questionCount,
             boolean randomize,
             @Min(0) @Max(100) int passMark,
-            @Min(1) @Max(10) int attemptsAllowed,
-            LocalDate opensAt,
-            LocalDate closesAt,
             boolean showCorrection,
             boolean roomOnly,
             boolean requiresAdminValidation,

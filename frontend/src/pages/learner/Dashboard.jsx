@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { ArrowRight, Award, BookOpen, CalendarClock, CheckCircle2, ClipboardCheck, Compass, PartyPopper, PlayCircle, X } from 'lucide-react'
-import { formatDate } from '../../data/constants'
+import { formatDate, formatSession } from '../../data/constants'
 import { useApi } from '../../api/useApi'
 import { useAuth } from '../../context/AuthContext'
 import { CourseCard, CourseCover } from '../../components/CourseCard'
@@ -20,11 +20,12 @@ export default function LearnerDashboard() {
   if (enrollmentsState.error) return <ErrorState error={enrollmentsState.error} onRetry={enrollmentsState.reload} />
   const enrollments = enrollmentsState.data ?? []
   const active = enrollments.filter((e) => e.status === 'actif')
-  const inProgress = active.filter((e) => e.progress < 100).sort((a, b) => b.progress - a.progress)
+  const inProgress = active.filter((e) => e.mode !== 'salle' && e.progress < 100).sort((a, b) => b.progress - a.progress)
   const resume = inProgress[0]
   const lessonsDone = enrollments.reduce((n, e) => n + e.completedLessons, 0)
   const examsTaken = exams.reduce((n, e) => n + e.attempts.filter((a) => a.status === 'soumis').length, 0)
-  const upcoming = exams.filter((e) => !e.passed && e.attemptsLeft > 0 && e.exam.open)
+  // En salle : tant que la tentative n'est pas utilisée ; en ligne : tant que l'examen n'est pas réussi
+  const upcoming = exams.filter((e) => !e.passed && (e.mode !== 'salle' || e.attemptsLeft > 0 || e.inProgressAttemptId))
   const recommended = catalog.filter((c) => !enrollments.some((e) => e.course.slug === c.slug)).slice(0, 3)
 
   return (
@@ -63,6 +64,10 @@ export default function LearnerDashboard() {
             </Button>
           </div>
         </section>
+      ) : active.some((e) => e.mode === 'salle') ? (
+        <EmptyState icon={Compass} title="Vos formations se suivent en salle"
+          text="Ouvrez une formation pour télécharger le cours, faire les quiz d'entraînement et voir la date de l'examen final."
+          action={<Button to="/apprenant/formations">Mes formations</Button>} />
       ) : (
         <EmptyState icon={Compass} title={active.length ? 'Toutes vos formations sont terminées 🎉' : 'Aucune formation en cours'}
           text="Découvrez le catalogue et inscrivez-vous à une nouvelle formation." action={<Button to="/formations">Explorer le catalogue</Button>} />
@@ -91,6 +96,8 @@ export default function LearnerDashboard() {
                       <p className="truncate font-bold">{e.course.title}</p>
                       {e.status === 'en-attente' ? (
                         <Badge tone="amber" className="mt-1">En attente de validation</Badge>
+                      ) : e.mode === 'salle' ? (
+                        <Badge tone="blue" className="mt-1">En salle · cours à l'Académie</Badge>
                       ) : (
                         <div className="mt-1.5 flex items-center gap-3">
                           <ProgressBar value={e.progress} size="sm" className="max-w-48 flex-1" />
@@ -116,8 +123,12 @@ export default function LearnerDashboard() {
                 {upcoming.slice(0, 2).map((x) => (
                   <div key={x.exam.id} className="rounded-xl bg-flame-50 p-4">
                     <p className="font-bold">{x.exam.course.title}</p>
-                    <p className="mt-1 text-sm text-gray-700">{x.exam.closesAt ? `Ouvert jusqu'au ${formatDate(x.exam.closesAt)} · ` : ''}{x.exam.durationMin} min</p>
-                    <p className="mt-1 text-sm text-gray-700">Tentatives restantes : {x.attemptsLeft} / {x.exam.attemptsAllowed}</p>
+                    <p className="mt-1 text-sm text-gray-700">{x.mode === 'salle' ? 'En salle · une seule tentative' : 'En ligne · tentatives illimitées'} · {x.exam.durationMin} min</p>
+                    <p className="mt-1 text-sm font-semibold text-gray-800">
+                      {x.canStart ? 'Ouvert maintenant'
+                        : x.mode === 'salle' ? (x.nextSession ? `Session : ${formatSession(x.nextSession)}` : 'Session à programmer par le formateur')
+                        : `Verrouillé : formation terminée à ${x.progress} %`}
+                    </p>
                     <Button to="/apprenant/examens" size="sm" variant="flame" className="mt-3">Voir l'examen</Button>
                   </div>
                 ))}

@@ -23,14 +23,13 @@ import tg.cdej.aluni.domain.CourseModule;
 import tg.cdej.aluni.domain.CourseStatus;
 import tg.cdej.aluni.domain.Enrollment;
 import tg.cdej.aluni.domain.EnrollmentStatus;
+import tg.cdej.aluni.domain.LearningMode;
 import tg.cdej.aluni.domain.Lesson;
 import tg.cdej.aluni.domain.LessonProgress;
 import tg.cdej.aluni.domain.NotificationType;
 import tg.cdej.aluni.domain.Question;
 import tg.cdej.aluni.domain.QuizResult;
 import tg.cdej.aluni.domain.Role;
-import tg.cdej.aluni.domain.Submission;
-import tg.cdej.aluni.domain.SubmissionStatus;
 import tg.cdej.aluni.domain.User;
 import tg.cdej.aluni.dto.LearningDtos.AttestationInfo;
 import tg.cdej.aluni.dto.LearningDtos.EnrollmentDto;
@@ -42,7 +41,6 @@ import tg.cdej.aluni.dto.LearningDtos.ProgressDto;
 import tg.cdej.aluni.dto.LearningDtos.QuizCorrection;
 import tg.cdej.aluni.dto.LearningDtos.QuizQuestion;
 import tg.cdej.aluni.dto.LearningDtos.QuizResultDto;
-import tg.cdej.aluni.dto.LearningDtos.SubmissionDto;
 import tg.cdej.aluni.repository.CertificateRepository;
 import tg.cdej.aluni.repository.CourseModuleRepository;
 import tg.cdej.aluni.repository.CourseRepository;
@@ -52,7 +50,6 @@ import tg.cdej.aluni.repository.LessonProgressRepository;
 import tg.cdej.aluni.repository.LessonRepository;
 import tg.cdej.aluni.repository.QuestionRepository;
 import tg.cdej.aluni.repository.QuizResultRepository;
-import tg.cdej.aluni.repository.SubmissionRepository;
 import tg.cdej.aluni.repository.UserRepository;
 
 @Service
@@ -67,18 +64,16 @@ public class LearningService {
     private final QuestionRepository questions;
     private final ExamRepository exams;
     private final CertificateRepository certificates;
-    private final SubmissionRepository submissions;
     private final UserRepository users;
     private final CertificateService certificateService;
     private final NotificationService notifications;
-    private final StorageService storage;
     private final Mapper mapper;
 
     public LearningService(CourseRepository courses, EnrollmentRepository enrollments, LessonRepository lessons,
             CourseModuleRepository modules, LessonProgressRepository progress, QuizResultRepository quizResults,
             QuestionRepository questions, ExamRepository exams, CertificateRepository certificates,
-            SubmissionRepository submissions, UserRepository users, CertificateService certificateService,
-            NotificationService notifications, StorageService storage, Mapper mapper) {
+            UserRepository users, CertificateService certificateService,
+            NotificationService notifications, Mapper mapper) {
         this.courses = courses;
         this.enrollments = enrollments;
         this.lessons = lessons;
@@ -88,11 +83,9 @@ public class LearningService {
         this.questions = questions;
         this.exams = exams;
         this.certificates = certificates;
-        this.submissions = submissions;
         this.users = users;
         this.certificateService = certificateService;
         this.notifications = notifications;
-        this.storage = storage;
         this.mapper = mapper;
     }
 
@@ -113,6 +106,11 @@ public class LearningService {
 
     private static boolean moduleDone(CourseModule m, Set<Long> done) {
         return m.getLessons().stream().allMatch(l -> done.contains(l.getId()));
+    }
+
+    /** En salle, le formateur présente tout le cours : tous les modules sont accessibles, sans ordre imposé. */
+    private static boolean open(Enrollment e, Course course, int index, Set<Long> done) {
+        return e.getMode() == LearningMode.SALLE || unlocked(course, index, done);
     }
 
     private static boolean unlocked(Course course, int index, Set<Long> done) {
@@ -166,7 +164,7 @@ public class LearningService {
                 .filter(l -> !done.contains(l.getId())).findFirst()
                 .map(l -> new LessonRef(l.getId(), l.getTitle())).orElse(null);
         int total = c.lessonCount();
-        return new EnrollmentDto(e.getId(), mapper.summary(c), Codes.of(e.getStatus()), e.getEnrolledAt(),
+        return new EnrollmentDto(e.getId(), mapper.summary(c), Codes.of(e.getStatus()), Codes.of(LearningMode.defaultIfNull(e)), e.getEnrolledAt(),
                 percent(done.size(), total), done.size(), total, next);
     }
 
@@ -181,22 +179,18 @@ public class LearningService {
     @Transactional(readOnly = true)
     public LearnView learn(User user, String slug) {
         Course course = course(slug);
-        activeEnrollment(user, course);
+        Enrollment enrollment = activeEnrollment(user, course);
         Set<Long> done = completedIds(user, course);
         Map<Long, Integer> quizScores = new HashMap<>();
         quizResults.findByUserAndModule_Course(user, course).forEach(q -> quizScores.put(q.getModule().getId(), q.getScore()));
-        Map<Long, Submission> lastSubmissions = new HashMap<>();
-        submissions.findByUserOrderBySubmittedAtDesc(user).stream().filter(s -> s.getLesson() != null)
-                .forEach(s -> lastSubmissions.putIfAbsent(s.getLesson().getId(), s));
 
         List<LearnModule> view = new ArrayList<>();
         for (int i = 0; i < course.getModules().size(); i++) {
             CourseModule m = course.getModules().get(i);
-            boolean open = unlocked(course, i, done);
+            boolean open = open(enrollment, course, i, done);
             List<LearnLesson> ls = m.getLessons().stream().map(l -> new LearnLesson(l.getId(), l.getTitle(),
                     Codes.of(l.getType()), l.getDuration(), open ? l.getContent() : null, open ? l.getVideoUrl() : null,
-                    open ? l.getFileUrl() : null, l.isPractical(), done.contains(l.getId()),
-                    lastSubmissions.containsKey(l.getId()) ? mapper.submission(lastSubmissions.get(l.getId())) : null))
+                    open ? l.getFileUrl() : null, done.contains(l.getId())))
                     .toList();
             view.add(new LearnModule(m.getId(), m.getTitle(), i, open, moduleDone(m, done), quizScores.get(m.getId()),
                     !questions.findByModuleOrderByIdAsc(m).isEmpty(), ls));
@@ -205,7 +199,7 @@ public class LearningService {
         Long examId = course.delivers(CertType.COMPETENCE) ? exams.findByCourse(course).map(e -> e.getId()).orElse(null) : null;
         String attestationCode = certificates.findByUserAndCourseAndType(user, course, CertType.ATTESTATION)
                 .map(Certificate::getCode).orElse(null);
-        return new LearnView(mapper.summary(course), view, pct, examId,
+        return new LearnView(mapper.summary(course), Codes.of(enrollment.getMode()), course.getSupportUrl(), view, pct, examId,
                 new AttestationInfo(course.delivers(CertType.ATTESTATION), pct == 100, attestationCode));
     }
 
@@ -216,7 +210,7 @@ public class LearningService {
         Enrollment enrollment = activeEnrollment(user, course);
         Set<Long> done = completedIds(user, course);
         int index = course.getModules().indexOf(lesson.getModule());
-        if (!unlocked(course, index, done)) throw ApiException.forbidden("Terminez d'abord le module précédent.");
+        if (!open(enrollment, course, index, done)) throw ApiException.forbidden("Terminez d'abord le module précédent.");
 
         if (completed && !done.contains(lessonId)) {
             progress.save(new LessonProgress(user, lesson));
@@ -242,8 +236,8 @@ public class LearningService {
     private CourseModule accessibleModule(User user, Long moduleId) {
         CourseModule m = modules.findById(moduleId).orElseThrow(() -> ApiException.notFound("Module introuvable."));
         Course course = m.getCourse();
-        activeEnrollment(user, course);
-        if (!unlocked(course, course.getModules().indexOf(m), completedIds(user, course))) {
+        Enrollment enrollment = activeEnrollment(user, course);
+        if (!open(enrollment, course, course.getModules().indexOf(m), completedIds(user, course))) {
             throw ApiException.forbidden("Ce module n'est pas encore débloqué.");
         }
         return m;
@@ -289,30 +283,5 @@ public class LearningService {
         if (!course.delivers(CertType.ATTESTATION)) throw ApiException.badRequest("Cette formation ne délivre pas d'attestation.");
         if (progressOf(user, course) < 100) throw ApiException.badRequest("Terminez toutes les leçons pour obtenir l'attestation.");
         return certificateService.issue(user, course, CertType.ATTESTATION, null, false).getCode();
-    }
-
-    @Transactional
-    public SubmissionDto submitPractical(User user, Long lessonId, MultipartFile file) {
-        Lesson lesson = lessons.findById(lessonId).orElseThrow(() -> ApiException.notFound("Leçon introuvable."));
-        Course course = lesson.getModule().getCourse();
-        activeEnrollment(user, course);
-        if (!lesson.isPractical()) throw ApiException.badRequest("Cette leçon n'attend pas de dépôt de fichier.");
-        Submission s = new Submission();
-        s.setUser(user);
-        s.setCourse(course);
-        s.setLesson(lesson);
-        s.setTask(lesson.getTitle());
-        s.setFileName(file.getOriginalFilename() == null ? "fichier" : file.getOriginalFilename());
-        s.setStoredFile(storage.storePrivate(file, "submissions", StorageService.SUBMISSIONS));
-        s.setStatus(SubmissionStatus.A_CORRIGER);
-        submissions.save(s);
-        notifications.notify(course.getTrainer(), NotificationType.GRADE, "Exercice à corriger",
-                user.fullName() + " a déposé « " + lesson.getTitle() + " ».", "/formateur/corrections");
-        return mapper.submission(s);
-    }
-
-    @Transactional(readOnly = true)
-    public List<SubmissionDto> mySubmissions(User user) {
-        return submissions.findByUserOrderBySubmittedAtDesc(user).stream().map(mapper::submission).toList();
     }
 }

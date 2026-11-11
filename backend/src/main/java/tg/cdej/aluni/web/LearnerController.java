@@ -27,7 +27,6 @@ import tg.cdej.aluni.dto.LearningDtos.ProgressDto;
 import tg.cdej.aluni.dto.LearningDtos.QuizQuestion;
 import tg.cdej.aluni.dto.LearningDtos.QuizResultDto;
 import tg.cdej.aluni.dto.LearningDtos.QuizSubmit;
-import tg.cdej.aluni.dto.LearningDtos.SubmissionDto;
 import tg.cdej.aluni.dto.UserDtos.PasswordChange;
 import tg.cdej.aluni.dto.UserDtos.ProfileUpdate;
 import tg.cdej.aluni.dto.UserDtos.UserDto;
@@ -100,23 +99,6 @@ public class LearnerController {
     @PostMapping("/me/courses/{slug}/attestation")
     public Map<String, String> attestation(@PathVariable String slug) {
         return Map.of("code", learning.attestation(current.get(), slug));
-    }
-
-    @PostMapping(path = "/me/lessons/{id}/submission", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public SubmissionDto submit(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
-        return learning.submitPractical(current.get(), id, file);
-    }
-
-    @GetMapping("/me/submissions")
-    public List<SubmissionDto> submissions() {
-        return learning.mySubmissions(current.get());
-    }
-
-    @GetMapping("/submissions/{id}/file")
-    public ResponseEntity<Resource> submissionFile(@PathVariable Long id) {
-        Map.Entry<String, Resource> file = trainer.submissionFile(current.get(), id);
-        MediaType type = MediaTypeFactory.getMediaType(file.getKey()).orElse(MediaType.APPLICATION_OCTET_STREAM);
-        return Downloads.file(file.getValue(), file.getKey(), type, false);
     }
 
     // ----- Examens et certificats

@@ -24,8 +24,19 @@ import tg.cdej.aluni.service.importer.DocumentExtractor.TextLine;
  * Réponse : b
  * </pre>
  *
- * Vrai/faux, réponses multiples, réponse courte (« Réponse : navigateur | navigateur web ») et exercices
- * pratiques (« [Pratique] … ») sont reconnus automatiquement.
+ * Les réponses peuvent aussi être regroupées en bas du document, sous un titre « Réponses » / « Corrigé » :
+ *
+ * <pre>
+ * Réponses
+ * 1. b
+ * 2. Vrai
+ * 3. navigateur | navigateur web        (ou sur une ligne : « 1-b  2-Vrai  3-navigateur »)
+ * </pre>
+ *
+ * Chaque réponse du corrigé est rattachée à la question du même numéro.
+ * Vrai/faux, réponses multiples et réponse courte (« Réponse : navigateur | navigateur web ») sont reconnus
+ * automatiquement. Toute question doit porter sa réponse : la correction est entièrement automatique, les
+ * questions ouvertes ou exercices à rendre (« [Pratique] … ») sont donc signalés et non importés.
  */
 public final class QuestionParser {
 
@@ -42,6 +53,14 @@ public final class QuestionParser {
     private static final Pattern LETTERS = Pattern.compile("(?iu)^[a-h](\\s*(,|;|/|\\+|&|et|and)\\s*[a-h])*\\.?$");
     private static final Pattern DIGITS = Pattern.compile("^\\d(\\s*(,|;|/|\\+|&|et)\\s*\\d)*\\.?$");
     private static final Pattern NOTE = Pattern.compile("(?iu)^\\s*(→|⇒|->|=>|nb\\s*:|n\\.b\\.|note\\s*:|remarque\\s*:|explication\\s*:|astuce\\s*:).*");
+    /** Titre de la partie « corrigé » en bas du document (comparé au texte sans accents ni majuscules). */
+    private static final Pattern KEY_HEADER = Pattern.compile("^(?:les\\s+)?(?:bonnes\\s+)?"
+            + "(?:reponses?|corriges?|correction|cle(?:\\s+de\\s+correction)?|grille(?:\\s+de\\s+(?:correction|reponses?))?|solutions?)"
+            + "(?:\\s+(?:de\\s+l'examen|du\\s+questionnaire|du\\s+quiz|de\\s+l'evaluation|aux\\s+questions|attendues?|types?|correctes?))?"
+            + "\\s*[:.]?$");
+    /** Repère « 1. », « 2) », « 3 : », « Question 4 – », « R5 = » dans le corrigé ; plusieurs par ligne possibles. */
+    private static final Pattern KEY_MARK = Pattern.compile(
+            "(?iu)(?:^|(?<=[\\s;,]))(?:(?:question|r[ée]ponse|q|r)\\s*)?(\\d{1,3})\\s*[.)\\-:–=|/]\\s*");
     private static final Set<String> TRUE = Set.of("vrai", "v", "true", "oui");
     private static final Set<String> FALSE = Set.of("faux", "f", "false", "non");
 
@@ -54,6 +73,13 @@ public final class QuestionParser {
         final List<String> options = new ArrayList<>();
         final List<Boolean> marked = new ArrayList<>();
         String answer;
+        /** Numéro écrit dans le document (« 3. … »), sinon null. */
+        Integer number;
+        /** Le document a un corrigé en bas : réponse attendue depuis ce corrigé. */
+        boolean keyExpected;
+        boolean fromKey;
+        /** Numéro sous lequel la réponse est cherchée dans le corrigé. */
+        int keyNumber;
     }
 
     static String fold(String s) {
@@ -66,6 +92,67 @@ public final class QuestionParser {
     }
 
     public static List<ParsedQuestion> parse(List<TextLine> lines, boolean moduleQuiz) {
+        // Corrigé en bas du document : les questions sont au-dessus, les réponses en dessous
+        int keyStart = answerKeyStart(lines);
+        List<TextLine> body = keyStart < 0 ? lines : lines.subList(0, keyStart);
+        List<Draft> drafts = parseQuestions(body);
+        if (keyStart >= 0) applyKey(drafts, readKey(lines.subList(keyStart + 1, lines.size())));
+        return drafts.stream().filter(d -> d.text.length() > 0 || !d.options.isEmpty()).map(d -> build(d, moduleQuiz)).toList();
+    }
+
+    /** Index du dernier titre « Réponses / Corrigé… » suivi d'au moins une réponse numérotée, sinon -1. */
+    private static int answerKeyStart(List<TextLine> lines) {
+        for (int i = lines.size() - 1; i >= 0; i--) {
+            String t = fold(lines.get(i).text()).replaceAll("^[#*\\-–=_\\s]+|[\\s*=_]+$", "");
+            if (KEY_HEADER.matcher(t).matches() && !readKey(lines.subList(i + 1, lines.size())).isEmpty()) return i;
+        }
+        return -1;
+    }
+
+    /** Lit le corrigé : numéro de question → réponse, dans l'ordre du document. */
+    private static java.util.Map<Integer, String> readKey(List<TextLine> lines) {
+        java.util.Map<Integer, String> key = new java.util.LinkedHashMap<>();
+        int last = 0;
+        for (TextLine line : lines) {
+            String t = line.text().strip();
+            if (t.isEmpty() || NOTE.matcher(t).matches()) continue;
+            List<int[]> marks = new ArrayList<>(); // {début du repère, début de la réponse, numéro}
+            Matcher m = KEY_MARK.matcher(t);
+            while (m.find()) marks.add(new int[] {m.start(), m.end(), Integer.parseInt(m.group(1))});
+            // Un repère suivi d'aucun texte (« … Windows 10. ») fait partie de la réponse précédente
+            marks.removeIf(mk -> {
+                int next = marks.stream().filter(o -> o[0] > mk[0]).mapToInt(o -> o[0]).min().orElse(t.length());
+                return t.substring(mk[1], next).replaceAll("[\\s;,]", "").isEmpty();
+            });
+            if (marks.isEmpty() || marks.get(0)[0] > 0) {
+                // Liste numérotée automatiquement par Word : le numéro n'est pas dans le texte
+                if (line.listFormat() != null && !isLetterList(line.listFormat()) && marks.isEmpty()) key.put(last = last + 1, t);
+                continue;
+            }
+            for (int k = 0; k < marks.size(); k++) {
+                int end = k + 1 < marks.size() ? marks.get(k + 1)[0] : t.length();
+                String answer = t.substring(marks.get(k)[1], end).replaceAll("[\\s;,]+$", "").strip();
+                if (!answer.isEmpty()) key.put(last = marks.get(k)[2], answer);
+            }
+        }
+        return key;
+    }
+
+    /** Rattache chaque réponse du corrigé à la question de même numéro (ou de même rang si les questions ne sont pas numérotées). */
+    private static void applyKey(List<Draft> drafts, java.util.Map<Integer, String> key) {
+        for (int i = 0; i < drafts.size(); i++) {
+            Draft d = drafts.get(i);
+            d.keyExpected = true;
+            d.keyNumber = d.number != null ? d.number : i + 1;
+            String answer = key.get(d.keyNumber);
+            if (answer != null && d.answer == null) {
+                d.answer = answer;
+                d.fromKey = true;
+            }
+        }
+    }
+
+    private static List<Draft> parseQuestions(List<TextLine> lines) {
         List<Draft> drafts = new ArrayList<>();
         Draft q = null;
         for (int i = 0; i < lines.size(); i++) {
@@ -98,8 +185,10 @@ public final class QuestionParser {
             Matcher bullet = OPTION_BULLET.matcher(t);
             if (word.matches()) {
                 q = start(drafts, i, word.group(2), line.bold());
+                q.number = Integer.valueOf(word.group(1));
             } else if (numbered.matches() && !(q != null && q.options.isEmpty() && q.text.length() == 0)) {
                 q = start(drafts, i, numbered.group(2), line.bold());
+                q.number = Integer.valueOf(numbered.group(1));
             } else if (q != null && option.matches()) {
                 addOption(q, option.group(2), line.bold());
             } else if (q != null && bullet.matches()) {
@@ -119,7 +208,7 @@ public final class QuestionParser {
                 addOption(q, t, line.bold()); // réponses non lettrées sous la question
             }
         }
-        return drafts.stream().filter(d -> d.text.length() > 0 || !d.options.isEmpty()).map(d -> build(d, moduleQuiz)).toList();
+        return drafts;
     }
 
     private static String stripNumber(String t) {
@@ -186,14 +275,23 @@ public final class QuestionParser {
 
         String type;
         String error = null;
+        // Messages précis quand les réponses sont regroupées dans un corrigé en bas du document
+        String missing = d.keyExpected && answer == null
+                ? "Réponse absente du corrigé : ajoutez la ligne « " + d.keyNumber + ". … » dans le corrigé (partie « Réponses ») en bas du document."
+                : null;
+        String unmatched = d.fromKey
+                ? "La réponse « " + answer + " » du corrigé ne correspond à aucun choix de la question " + d.keyNumber + "."
+                : null;
         boolean trueFalseOptions = options.size() == 2 && TRUE.contains(fold(options.get(0))) && FALSE.contains(fold(options.get(1)));
         boolean answerTrueFalse = answer != null && (TRUE.contains(fold(answer)) || FALSE.contains(fold(answer)));
 
         if ("pratique".equals(tag) || "exercice".equals(tag)
                 || (options.isEmpty() && answer == null && fold(text).matches("^(exercice|tp|travail pratique|activite pratique)\\b.*"))) {
-            type = "pratique";
+            type = "courte";
             options.clear();
             correct.clear();
+            error = "Exercice à rendre : il ne peut pas être corrigé automatiquement. Transformez-le en QCM, vrai / faux "
+                    + "ou réponse courte avec sa réponse (« Réponse : … »).";
         } else if (trueFalseOptions || (options.isEmpty() && answerTrueFalse) || "vf".equals(tag) || "vraifaux".equals(tag)) {
             type = "vraifaux";
             Integer value = null;
@@ -201,11 +299,12 @@ public final class QuestionParser {
             else if (correct.size() == 1) value = correct.iterator().next();
             options = List.of("Vrai", "Faux");
             correct.clear();
-            if (value == null) error = "Indiquez si l'affirmation est vraie ou fausse (« Réponse : Vrai »).";
+            if (value == null) error = missing != null ? missing : unmatched != null ? unmatched : "Indiquez si l'affirmation est vraie ou fausse (« Réponse : Vrai »).";
             else correct.add(value);
         } else if (options.size() >= 2) {
             type = correct.size() > 1 || "multiple".equals(tag) ? "multiple" : "unique";
-            if (correct.isEmpty()) error = "Bonne réponse non indiquée : mettez-la en gras, ajoutez * après, ou une ligne « Réponse : b ».";
+            if (correct.isEmpty()) error = missing != null ? missing : unmatched != null ? unmatched
+                    : "Bonne réponse non indiquée : mettez-la en gras, ajoutez * après, ou une ligne « Réponse : b ».";
         } else if (options.size() == 1) {
             type = "unique";
             error = "Une seule réponse proposée : il en faut au moins deux.";
@@ -215,7 +314,7 @@ public final class QuestionParser {
             if (accepted.isEmpty()) error = "Réponse attendue vide.";
         } else {
             type = "courte";
-            error = "Aucune réponse : ajoutez les choix a), b), c)… ou une ligne « Réponse : … ».";
+            error = missing != null ? missing : "Aucune réponse : ajoutez les choix a), b), c)… ou une ligne « Réponse : … ».";
         }
         if (text.isEmpty()) error = "Énoncé de la question manquant.";
         if (error == null && moduleQuiz && !type.equals("unique") && !type.equals("vraifaux")) {
@@ -228,6 +327,10 @@ public final class QuestionParser {
     private static List<Integer> answerIndexes(String answer, List<String> options) {
         List<Integer> result = new ArrayList<>();
         String a = answer.strip();
+        Matcher withText = OPTION.matcher(a); // « b) L'écran » : la lettre suffit
+        if (withText.matches() && withText.group(1).toLowerCase(Locale.ROOT).charAt(0) - 'a' < options.size()) {
+            a = withText.group(1);
+        }
         if (LETTERS.matcher(a).matches()) {
             for (char c : a.toLowerCase(Locale.ROOT).replaceAll("\\bet\\b|\\band\\b", " ").toCharArray()) {
                 if (c >= 'a' && c <= 'h' && c - 'a' < options.size()) result.add(c - 'a');

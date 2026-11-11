@@ -38,11 +38,11 @@ export function AdminDashboard() {
     <>
       <PageHeader title="Tableau de bord" subtitle="Vue d'ensemble de l'Académie" actions={<Button to="/admin/statistiques" variant="outline-gray"><Download className="size-4" />Rapports</Button>} />
       <Async state={state}>
-        {({ stats, monthly, profiles, pendingTrainers, pendingCourses, latestCertificates }) => (
+        {({ stats, monthly, profiles, pendingTrainers, latestCertificates }) => (
           <>
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               <StatCard icon={Users} label="Apprenants inscrits" value={stats.learners} hint={`+${stats.learnersThisMonth} ce mois-ci`} />
-              <StatCard icon={BookOpen} label="Formations actives" value={stats.activeCourses} hint={stats.pendingCourses ? `${stats.pendingCourses} en attente de validation` : null} tone="blue" />
+              <StatCard icon={BookOpen} label="Formations actives" value={stats.activeCourses} hint="Publiées par les formateurs" tone="blue" />
               <StatCard icon={TrendingUp} label="Taux de réussite" value={stats.successRate != null ? `${stats.successRate} %` : '—'} hint="Examens finaux" tone="gold" />
               <StatCard icon={Award} label="Certificats délivrés" value={stats.certificates} hint={stats.revoked ? `dont ${stats.revoked} révoqué(s)` : null} tone="flame" />
             </div>
@@ -66,20 +66,13 @@ export function AdminDashboard() {
                   <h2 className="text-lg font-bold">En attente de validation</h2>
                   <Link to="/admin/validations" className="text-sm font-bold text-brand-700 hover:underline">Tout voir</Link>
                 </div>
-                {pendingTrainers.length + pendingCourses.length ? (
+                {pendingTrainers.length ? (
                   <ul className="divide-y divide-gray-100">
                     {pendingTrainers.map((t) => (
                       <li key={`t${t.id}`} className="flex items-center gap-3 py-3">
                         <Avatar name={t.name} size="sm" />
                         <div className="min-w-0 flex-1"><p className="font-semibold">{t.name}</p><p className="truncate text-sm text-gray-500">Formateur · {t.speciality}</p></div>
                         <Badge tone="amber">Compte</Badge>
-                      </li>
-                    ))}
-                    {pendingCourses.map((c) => (
-                      <li key={`c${c.id}`} className="flex items-center gap-3 py-3">
-                        <span className="flex size-8 items-center justify-center rounded-full bg-blue-50 text-blue-700"><BookOpen className="size-4" /></span>
-                        <div className="min-w-0 flex-1"><p className="truncate font-semibold">{c.title}</p><p className="text-sm text-gray-500">par {c.trainer}</p></div>
-                        <Badge tone="blue">Formation</Badge>
                       </li>
                     ))}
                   </ul>
@@ -347,13 +340,12 @@ export function AdminValidations() {
 
   return (
     <>
-      <PageHeader title="Validations" subtitle="Comptes formateurs, formations, inscriptions et certificats en attente." />
+      <PageHeader title="Validations" subtitle="Comptes formateurs, inscriptions et certificats en attente." />
       <Async state={state}>
         {(v) => (
           <>
             <Tabs className="mb-5" value={tab} onChange={setTab} tabs={[
               { value: 'trainers', label: 'Formateurs', count: v.trainers.length },
-              { value: 'courses', label: 'Formations', count: v.courses.length },
               { value: 'enrollments', label: 'Inscriptions', count: v.enrollments.length },
               { value: 'certificates', label: 'Certificats', count: v.certificates.length },
             ]} />
@@ -368,18 +360,6 @@ export function AdminValidations() {
                 ))}
               </div>
             ) : <EmptyState icon={UserCheck} title="Aucune demande en attente" />)}
-            {tab === 'courses' && (v.courses.length ? (
-              <div className="card divide-y divide-gray-100">
-                {v.courses.map((c) => (
-                  <div key={c.id} className="flex flex-wrap items-center gap-4 p-4">
-                    <span className="flex size-11 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><BookOpen className="size-5" /></span>
-                    <div className="min-w-0 flex-1"><p className="font-bold">{c.title}</p><p className="text-sm text-gray-600">par {c.trainer} · {c.modules} module(s) · soumise le {formatDate(c.date)}</p></div>
-                    <Button size="sm" variant="ghost" to={`/admin/formations/${c.id}`}><Eye className="size-4" />Examiner</Button>
-                    <Actions kind="courses" id={c.id} />
-                  </div>
-                ))}
-              </div>
-            ) : <EmptyState icon={BookOpen} title="Aucune formation en attente" />)}
             {tab === 'enrollments' && (v.enrollments.length ? (
               <div className="card divide-y divide-gray-100">
                 {v.enrollments.map((e) => (
@@ -490,7 +470,6 @@ export function AdminCourses() {
                       <td className="pr-4 text-right">
                         {c.status === 'publiee' && <Button size="sm" variant="ghost" onClick={() => setStatus(c, 'archivee')}>Archiver</Button>}
                         {c.status === 'archivee' && <Button size="sm" variant="secondary" onClick={() => setStatus(c, 'publiee')}>Republier</Button>}
-                        {c.status === 'en-validation' && <Button size="sm" variant="secondary" to="/admin/validations">Valider</Button>}
                       </td>
                     </tr>
                   ))}

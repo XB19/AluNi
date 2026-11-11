@@ -20,16 +20,13 @@ public final class LearningDtos {
     public record LessonRef(Long id, String title) {
     }
 
-    public record EnrollmentDto(Long id, CourseSummary course, String status, Instant enrolledAt, int progress,
+    /** mode : « salle » (support PDF, quiz et examen programmé) ou « en-ligne » (modules à suivre). */
+    public record EnrollmentDto(Long id, CourseSummary course, String status, String mode, Instant enrolledAt, int progress,
             int completedLessons, int totalLessons, LessonRef nextLesson) {
     }
 
-    public record SubmissionDto(Long id, String learner, Long learnerId, CourseRef course, Long lessonId, String task,
-            String fileName, String fileUrl, Instant date, String status, Integer grade, String comment) {
-    }
-
     public record LearnLesson(Long id, String title, String type, String duration, String content, String videoUrl,
-            String fileUrl, boolean practical, boolean completed, SubmissionDto submission) {
+            String fileUrl, boolean completed) {
     }
 
     public record LearnModule(Long id, String title, int position, boolean unlocked, boolean done, Integer quizScore,
@@ -39,7 +36,8 @@ public final class LearningDtos {
     public record AttestationInfo(boolean available, boolean eligible, String code) {
     }
 
-    public record LearnView(CourseSummary course, List<LearnModule> modules, int progress, Long examId,
+    /** mode : « salle » (support PDF, modules libres) ou « en-ligne » (modules débloqués un par un). */
+    public record LearnView(CourseSummary course, String mode, String supportUrl, List<LearnModule> modules, int progress, Long examId,
             AttestationInfo attestation) {
     }
 
@@ -60,11 +58,6 @@ public final class LearningDtos {
 
     public record NotificationDto(Long id, String type, String title, String text, Instant date, boolean read,
             String link) {
-    }
-
-    public record GradeRequest(
-            @NotNull(message = "Note obligatoire") @Min(0) @Max(20) Integer grade,
-            String comment) {
     }
 
     public record CertificateDto(String code, String name, CourseRef course, int hours, String type, LocalDate date,

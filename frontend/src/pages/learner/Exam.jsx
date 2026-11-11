@@ -4,6 +4,7 @@ import {
   AlertTriangle, ArrowLeft, ArrowRight, Award, CheckCircle2, ChevronLeft, Clock, CloudCheck, CloudUpload, Eye, Flag, Lock,
   MonitorSmartphone, RotateCcw, ShieldAlert, Wifi, WifiOff, XCircle,
 } from 'lucide-react'
+import { formatHour } from '../../data/constants'
 import { api } from '../../api/client'
 import { useApi } from '../../api/useApi'
 import { readStore, writeStore } from '../../context/storage'
@@ -29,8 +30,8 @@ function Result({ result }) {
       <div className="mx-auto max-w-3xl px-4 py-10">
         <Link to="/apprenant/examens" className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:underline"><ArrowLeft className="size-4" />Mes examens</Link>
         <div className={cx('mt-4 rounded-3xl p-8 text-center', result.passed ? 'bg-brand-50' : 'bg-amber-50')}>
-          {result.passed ? <Award className="mx-auto size-16 text-brand-600" /> : <RotateCcw className="mx-auto size-14 text-amber-600" />}
-          <h1 className="mt-4 text-3xl font-extrabold">{result.passed ? 'Félicitations, vous êtes admis(e) !' : 'Pas encore… ne lâchez rien !'}</h1>
+          {result.passed ? <Award className="mx-auto size-16 text-brand-600" /> : <XCircle className="mx-auto size-14 text-amber-600" />}
+          <h1 className="mt-4 text-3xl font-extrabold">{result.passed ? 'Félicitations, vous êtes admis(e) !' : result.canRetry ? 'Pas encore… ne lâchez rien !' : 'Examen non validé'}</h1>
           <p className="mt-1 text-gray-600">{result.examTitle}</p>
           <p className="mt-3 text-5xl font-black text-ink">{result.score}<span className="text-2xl text-gray-500">/100</span></p>
           <p className="mt-2 text-gray-700">Note minimale de réussite : {result.passMark}/100</p>
@@ -42,10 +43,11 @@ function Result({ result }) {
                 <Button size="lg" to={`/apprenant/certificats/${result.certificate.code}`}><Award className="size-5" />Voir mon certificat</Button>
               )
             )}
-            {!result.passed && result.attemptsLeft > 0 && (
-              <Button size="lg" variant="flame" onClick={() => window.location.assign(window.location.pathname)}>
-                Réessayer ({result.attemptsLeft} tentative{result.attemptsLeft > 1 ? 's' : ''} restante{result.attemptsLeft > 1 ? 's' : ''})
-              </Button>
+            {!result.passed && result.canRetry && (
+              <Button size="lg" variant="flame" onClick={() => window.location.assign(window.location.pathname)}><RotateCcw className="size-5" />Repasser l'examen</Button>
+            )}
+            {!result.passed && !result.canRetry && (
+              <p className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-amber-800">En salle, l'examen se passe en une seule tentative. Rapprochez-vous de votre formateur pour la suite de votre parcours.</p>
             )}
             <Button size="lg" variant="outline-gray" to={`/apprendre/${result.courseSlug}`}>Revoir le cours</Button>
           </div>
@@ -86,8 +88,8 @@ function ResultLoader({ attemptId }) {
 // ---------------------------------------------------------------- Consignes
 function Intro({ item, onStart, starting, error }) {
   const [accepted, setAccepted] = useState(false)
-  const { exam, attemptsLeft, inProgressAttemptId, passed } = item
-  const canStart = !passed && (inProgressAttemptId || (attemptsLeft > 0 && exam.open))
+  const { exam, mode, inProgressAttemptId, canStart, blockedReason, progress, currentSession } = item
+  const room = mode === 'salle'
   return (
     <Shell>
       <div className="mx-auto max-w-2xl px-4 py-10">
@@ -100,7 +102,7 @@ function Intro({ item, onStart, starting, error }) {
             ['Questions', exam.questionCount],
             ['Durée', `${exam.durationMin} min`],
             ['Réussite', `${exam.passMark}/100`],
-            ['Tentatives', `${attemptsLeft} restante${attemptsLeft > 1 ? 's' : ''}`],
+            room ? ['Tentative', 'Unique'] : ['Tentatives', 'Illimitées'],
           ].map(([k, v]) => (
             <div key={k} className="rounded-xl bg-gray-50 p-4 text-center">
               <p className="text-xl font-extrabold">{v}</p>
@@ -112,12 +114,17 @@ function Intro({ item, onStart, starting, error }) {
         <div className="mt-6 rounded-2xl border border-gray-200 p-5">
           <h2 className="font-bold">Avant de commencer</h2>
           <ul className="mt-3 space-y-3 text-[15px] text-gray-700">
+            {room ? (
+              <li className="flex gap-3 font-semibold text-ink"><RotateCcw className="mt-0.5 size-5 shrink-0 text-flame-500" />Examen en salle : une seule tentative. Une fois commencé, il compte, même si vous quittez avant la fin.{currentSession && <> Il se termine au plus tard à {formatHour(currentSession.endsAt)}.</>}</li>
+            ) : (
+              <li className="flex gap-3 font-semibold text-ink"><RotateCcw className="mt-0.5 size-5 shrink-0 text-brand-600" />Examen en ligne : si vous n'obtenez pas {exam.passMark}/100, vous pourrez le repasser autant de fois que nécessaire. De nouvelles questions sont tirées à chaque fois.</li>
+            )}
             <li className="flex gap-3"><Clock className="mt-0.5 size-5 shrink-0 text-brand-600" />Le chronomètre démarre dès que vous cliquez sur « Commencer ». À la fin du temps, vos réponses sont envoyées automatiquement.</li>
             <li className="flex gap-3"><CloudCheck className="mt-0.5 size-5 shrink-0 text-brand-600" />Vos réponses sont enregistrées à chaque clic. En cas de coupure d'internet ou de courant, revenez sur cette page pour reprendre là où vous étiez.</li>
             <li className="flex gap-3"><Eye className="mt-0.5 size-5 shrink-0 text-flame-500" />Restez sur cette page : chaque changement d'onglet ou d'application est détecté et signalé au formateur.</li>
             <li className="flex gap-3"><MonitorSmartphone className="mt-0.5 size-5 shrink-0 text-flame-500" />Une seule session est autorisée : si vous ouvrez l'examen ailleurs, cette fenêtre sera bloquée.</li>
           </ul>
-          {exam.roomOnly && <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Mode « examen en salle » : cet examen ne peut être passé que sur les postes de la salle de l'Académie.</p>}
+          {room && exam.roomOnly && <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Cet examen se passe sur les postes de la salle informatique de l'Académie.</p>}
         </div>
 
         {inProgressAttemptId ? (
@@ -132,7 +139,12 @@ function Intro({ item, onStart, starting, error }) {
         <Button size="lg" variant="flame" className="mt-4 w-full sm:w-auto" disabled={!canStart || starting || (!inProgressAttemptId && !accepted)} onClick={onStart}>
           {starting ? 'Préparation…' : inProgressAttemptId ? "Reprendre l'examen" : "Commencer l'examen"}
         </Button>
-        {!canStart && <p className="mt-3 text-sm font-medium text-red-600">{passed ? 'Vous avez déjà réussi cet examen.' : attemptsLeft <= 0 ? 'Vous avez utilisé toutes vos tentatives.' : "Cet examen n'est pas ouvert actuellement."}</p>}
+        {!canStart && blockedReason && (
+          <p className="mt-3 text-sm font-medium text-red-600">
+            {blockedReason}
+            {!room && progress < 100 && <> <Link to={`/apprendre/${exam.course.slug}`} className="underline">Continuer la formation</Link></>}
+          </p>
+        )}
       </div>
     </Shell>
   )

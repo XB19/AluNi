@@ -33,8 +33,6 @@ public class CourseImportService {
             "(?iu)^((le[çc]on|s[ée]ance|section|activit[ée]|cours|exercice|tp|projet|devoir|atelier)\\s*[0-9]+(\\.[0-9]+)*\\b.*|[0-9]+\\.[0-9]+\\.?\\s+\\S.*)$");
     private static final int MIN_INTRO_WORDS = 80;
     private static final Pattern BULLET_TEXT = Pattern.compile("^([-•●▪◦‣■➢➤✓✔]|\\d{1,2}[.)])\\s+(.*)$");
-    private static final Pattern PRACTICAL = Pattern.compile(
-            "(?iu)\\b(exercices?|tp|travaux pratiques|projets?|devoirs?|à rendre|a rendre|atelier|mise en pratique)\\b");
     private static final int WORDS_PER_LESSON = 700;
 
     private final DocumentExtractor extractor;
@@ -317,8 +315,7 @@ public class CourseImportService {
                 .filter(l -> !l.content.isEmpty() || !l.title.isBlank())
                 .map(l -> {
                     int minutes = Math.max(3, Math.round(l.words() / 100f) + (int) l.content.stream().filter(b -> b.kind() == Kind.IMAGE).count());
-                    boolean practical = PRACTICAL.matcher(l.title).find();
-                    return new LessonEdit(null, trim(l.title, 200), "texte", minutes + " min", render(l.content), null, null, practical);
+                    return new LessonEdit(null, trim(l.title, 200), "texte", minutes + " min", render(l.content), null, null);
                 })
                 .toList();
         return new ModuleEdit(null, trim(m.title, 200), lessons);

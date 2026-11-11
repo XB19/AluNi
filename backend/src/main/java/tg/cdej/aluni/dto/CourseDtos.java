@@ -60,7 +60,7 @@ public final class CourseDtos {
     public record ModuleOutline(Long id, String title, List<LessonOutline> lessons) {
     }
 
-    public record ExamInfo(Long id, int durationMin, int passMark, int questionCount, int attemptsAllowed) {
+    public record ExamInfo(Long id, int durationMin, int passMark, int questionCount) {
     }
 
     public record CourseDetail(
@@ -84,8 +84,7 @@ public final class CourseDtos {
             @Size(max = 40) String duration,
             String content,
             String videoUrl,
-            String fileUrl,
-            boolean practical) {
+            String fileUrl) {
     }
 
     public record ModuleEdit(
@@ -110,14 +109,15 @@ public final class CourseDtos {
             List<String> certTypes,
             String access,
             String image,
+            /** Support de cours PDF pour les apprenants en salle. */
+            String support,
             String status,
-            @Valid List<ModuleEdit> modules,
-            String reviewComment) {
+            @Valid List<ModuleEdit> modules) {
     }
 
     public record TrainerCourseDto(Long id, String slug, String title, String status, String category,
             String categoryIcon, String categoryColor, int modules,
-            int lessons, long enrolled, String image, String reviewComment, Instant updatedAt) {
+            int lessons, long enrolled, String image, Instant updatedAt) {
     }
 
     public record AdminCourseDto(Long id, String slug, String title, String category, String categoryName, String level,

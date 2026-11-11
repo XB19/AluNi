@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useSearchParams } from 'react-router'
 import { SearchX, SlidersHorizontal, X } from 'lucide-react'
 import { CERT_TYPES, LEVELS } from '../../data/constants'
@@ -151,7 +152,7 @@ export default function Catalog() {
         </div>
       </div>
 
-      {sheet && (
+      {sheet && createPortal(
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setSheet(false)} />
           <div className="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col rounded-t-3xl bg-white">
@@ -165,7 +166,8 @@ export default function Catalog() {
               <Button onClick={() => setSheet(false)}>Voir {results.length} résultat{results.length > 1 ? 's' : ''}</Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

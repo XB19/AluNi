@@ -63,6 +63,9 @@ public class Course {
 
     private String imageUrl;
 
+    /** Support de cours (PDF) que téléchargent les apprenants qui suivent la formation en salle. */
+    private String supportUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private AccessMode access;
@@ -98,15 +101,13 @@ public class Course {
     @OrderBy("position")
     private List<CourseModule> modules = new ArrayList<>();
 
-    @Column(columnDefinition = "text")
-    private String reviewComment;
-
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
 
     private Instant updatedAt;
 
-    private Instant submittedAt;
+    /** Date de (première) publication par le formateur. */
+    private Instant publishedAt;
 
     public boolean delivers(CertType type) {
         return certTypes.contains(type.name());

@@ -1,5 +1,6 @@
 package tg.cdej.aluni.service;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.Arrays;
@@ -17,11 +18,11 @@ import tg.cdej.aluni.domain.Course;
 import tg.cdej.aluni.domain.CourseStatus;
 import tg.cdej.aluni.domain.EnrollmentStatus;
 import tg.cdej.aluni.domain.Exam;
+import tg.cdej.aluni.domain.ExamSession;
 import tg.cdej.aluni.domain.FaqItem;
 import tg.cdej.aluni.domain.News;
 import tg.cdej.aluni.domain.Partner;
 import tg.cdej.aluni.domain.Question;
-import tg.cdej.aluni.domain.Submission;
 import tg.cdej.aluni.domain.User;
 import tg.cdej.aluni.dto.CourseDtos.CategoryDto;
 import tg.cdej.aluni.dto.CourseDtos.CourseDetail;
@@ -33,8 +34,8 @@ import tg.cdej.aluni.dto.CourseDtos.ModuleOutline;
 import tg.cdej.aluni.dto.CourseDtos.TrainerDto;
 import tg.cdej.aluni.dto.CourseDtos.TrainerRef;
 import tg.cdej.aluni.dto.ExamDtos.ExamSummary;
+import tg.cdej.aluni.dto.ExamDtos.SessionDto;
 import tg.cdej.aluni.dto.LearningDtos.CertificateDto;
-import tg.cdej.aluni.dto.LearningDtos.SubmissionDto;
 import tg.cdej.aluni.dto.SiteDtos.ContactMessageDto;
 import tg.cdej.aluni.dto.SiteDtos.FaqDto;
 import tg.cdej.aluni.dto.SiteDtos.NewsDto;
@@ -121,16 +122,33 @@ public class Mapper {
                 .toList();
         ExamInfo examInfo = exam == null ? null
                 : new ExamInfo(exam.getId(), exam.getDurationMin(), exam.getPassMark(),
-                        Math.min(exam.getQuestionCount(), exam.getQuestions().size()), exam.getAttemptsAllowed());
+                        Math.min(exam.getQuestionCount(), exam.getQuestions().size()));
         return new CourseDetail(summary(c), c.getDescription(), c.getPrerequisites(), c.getObjectives(),
                 c.getSkills(), modules, trainer(c.getTrainer()), examInfo, c.lessonCount());
     }
 
+    /** Fuseau de l'Académie (Kpévé, Togo). */
+    public static final java.time.ZoneId ZONE = java.time.ZoneId.of("Africa/Lome");
+    private static final java.time.format.DateTimeFormatter WHEN =
+            java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM 'à' HH'h'mm", Locale.FRENCH);
+    private static final java.time.format.DateTimeFormatter HOUR = java.time.format.DateTimeFormatter.ofPattern("HH'h'mm");
+
+    public static String when(Instant i) {
+        return WHEN.format(i.atZone(ZONE));
+    }
+
+    public static String hour(Instant i) {
+        return HOUR.format(i.atZone(ZONE));
+    }
+
+    public SessionDto session(ExamSession s) {
+        Instant now = Instant.now();
+        return new SessionDto(s.getId(), s.getStartsAt(), s.getEndsAt(), s.isRunning(now), !s.getEndsAt().isAfter(now));
+    }
+
     public ExamSummary exam(Exam e) {
         return new ExamSummary(e.getId(), e.getTitle(), courseRef(e.getCourse()), e.getDurationMin(), e.getPassMark(),
-                e.getAttemptsAllowed(), e.getOpensAt(), e.getClosesAt(), e.isRoomOnly(),
-                Math.min(e.getQuestionCount(), e.getQuestions().size()), e.isOpen(LocalDate.now()),
-                e.isShowCorrection());
+                e.isRoomOnly(), Math.min(e.getQuestionCount(), e.getQuestions().size()), e.isShowCorrection());
     }
 
     public String verifyUrl(String code) {
@@ -143,13 +161,6 @@ public class Mapper {
                 c.getSignature().substring(0, 8).toUpperCase(Locale.ROOT), settings.get("certificate.template"),
                 settings.get("certificate.signatory"), settings.get("certificate.signatoryTitle"),
                 verifyUrl(c.getCode()), c.getRevokedReason());
-    }
-
-    public SubmissionDto submission(Submission s) {
-        return new SubmissionDto(s.getId(), s.getUser().fullName(), s.getUser().getId(), courseRef(s.getCourse()),
-                s.getLesson() == null ? null : s.getLesson().getId(), s.getTask(), s.getFileName(),
-                "/api/submissions/" + s.getId() + "/file", s.getSubmittedAt(), Codes.of(s.getStatus()), s.getGrade(),
-                s.getComment());
     }
 
     public QuestionDto question(Question q) {

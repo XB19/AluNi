@@ -52,6 +52,4 @@ public class Lesson {
 
     private String fileUrl;
 
-    /** Exercice pratique : l'apprenant dépose un fichier corrigé par le formateur. */
-    private boolean practical;
 }

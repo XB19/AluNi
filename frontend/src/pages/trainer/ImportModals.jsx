@@ -9,6 +9,59 @@ import { Badge, Button, cx, Field, FormError, Modal } from '../../components/ui'
 const COURSE_FORMATS = '.docx,.doc,.pptx,.ppt,.pdf,.txt'
 const QUESTION_FORMATS = '.docx,.pdf,.txt'
 
+// Exemple de présentation (et non des questions à importer) : questions en haut, corrigé en bas
+const EXAMPLE_QUESTIONS = [
+  ['1. Quel élément affiche les informations ?', 'a) Le clavier', "b) L'écran", 'c) La souris'],
+  ['2. Lesquels sont des périphériques d\'entrée ? (2 points)', 'a) Le clavier', "b) L'imprimante", 'c) La souris'],
+  ['3. Une clé USB sert à transporter des fichiers.'],
+  ['4. Quel logiciel permet de naviguer sur Internet ?'],
+]
+const EXAMPLE_KEY = [
+  ['1. b', 'QCM : la lettre du bon choix'],
+  ['2. a, c', 'plusieurs lettres = réponses multiples'],
+  ['3. Vrai', 'Vrai ou Faux'],
+  ['4. navigateur | navigateur web', 'réponse courte, variantes séparées par |'],
+]
+
+function FormatGuide() {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+      <p className="font-bold text-ink">Comment rédiger votre document ?</p>
+      <p className="mt-1">
+        Écrivez <strong>vos propres questions</strong> en haut du document, puis <strong>toutes les réponses en bas</strong>, sous
+        le titre « Réponses ». La plateforme rattache chaque réponse à la question du même numéro et corrige automatiquement.
+        L'exemple ci-dessous montre seulement la présentation : <strong>il ne sera pas importé</strong>.
+      </p>
+      <div className="mt-3 overflow-hidden rounded-lg border border-gray-200 bg-white" aria-label="Exemple de document">
+        <div className="space-y-2.5 p-3.5 text-[13px] leading-relaxed text-gray-800">
+          {EXAMPLE_QUESTIONS.map(([q, ...choices]) => (
+            <div key={q}>
+              <p className="font-semibold">{q}</p>
+              {choices.map((c) => <p key={c} className="pl-3 text-gray-600">{c}</p>)}
+            </div>
+          ))}
+        </div>
+        <div className="border-t-2 border-dashed border-brand-200 bg-brand-50/50 p-3.5 text-[13px]">
+          <p className="font-bold tracking-wide text-brand-800 uppercase">Réponses</p>
+          <ul className="mt-1.5 space-y-1">
+            {EXAMPLE_KEY.map(([answer, hint]) => (
+              <li key={answer} className="flex flex-wrap items-baseline gap-x-3">
+                <span className="font-bold text-brand-700">{answer}</span>
+                <span className="text-xs text-gray-500">{hint}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      <ul className="mt-3 space-y-1 text-[13px]">
+        <li>• <strong>Chaque question doit avoir sa réponse</strong> dans le corrigé : vous n'avez ensuite rien à corriger.</li>
+        <li>• Barème : ajoutez « (2 points) » à la fin d'une question. Sans indication, elle vaut 1 point.</li>
+        <li>• Autre possibilité : indiquer la réponse sous chaque question (« Réponse : b ») ou mettre le bon choix en gras.</li>
+      </ul>
+    </div>
+  )
+}
+
 function DropZone({ accept, busy, label, hint, onFile }) {
   return (
     <label className={cx('flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-brand-300 bg-brand-50/40 p-8 text-center hover:border-brand-500', busy && 'pointer-events-none opacity-60')}>
@@ -73,7 +126,6 @@ export function ImportCourseModal({ open, onClose, course, onApply }) {
         duration: '5 min',
         fileUrl: preview.sourceUrl,
         content: '<p>Le document original de la formation est disponible ci-dessus : vous pouvez le consulter ou le télécharger pour le lire hors connexion.</p>',
-        practical: false,
       })
     }
     const patch = { modules: mode === 'append' ? [...course.modules, ...modules] : modules }
@@ -97,7 +149,7 @@ export function ImportCourseModal({ open, onClose, course, onApply }) {
             <li>• <strong>Word</strong> : les titres « Titre 1 » (ou les lignes « Module 1 : … ») deviennent des modules, les « Titre 2 » (ou « Leçon 1.1 : … ») des leçons.</li>
             <li>• <strong>PowerPoint</strong> : chaque diapositive « En-tête de section » ouvre un module, chaque diapositive devient une leçon (avec les notes du présentateur).</li>
             <li>• <strong>PDF</strong> : les titres sont repérés d'après la taille des caractères.</li>
-            <li>• Une leçon intitulée « Exercice », « TP » ou « Projet » devient un exercice à rendre.</li>
+            <li>• Les évaluations se font par les quiz et l'examen final, corrigés automatiquement : vous n'avez rien à corriger.</li>
           </ul>
           <DropZone accept={COURSE_FORMATS} busy={busy} label="Choisir le document du cours" hint="Word (.docx, .doc), PowerPoint (.pptx, .ppt), PDF ou texte – 50 Mo maximum" onFile={analyse} />
           <Button variant="ghost" size="sm" onClick={() => api.download('/trainer/import/templates/cours', 'modele-cours-aluni.docx')}><Download className="size-4" />Télécharger le modèle Word d'un cours</Button>
@@ -125,7 +177,7 @@ export function ImportCourseModal({ open, onClose, course, onApply }) {
                         <button onClick={() => setOpenLesson(openLesson === key ? null : key)} className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm hover:bg-gray-50">
                           <FileText className="size-4 shrink-0 text-gray-400" />
                           <span className="flex-1">{l.title}</span>
-                          {l.practical && <Badge tone="flame">À rendre</Badge>}
+                          
                           <span className="text-xs text-gray-500">{l.duration}</span>
                           <ChevronDown className={cx('size-4 text-gray-400 transition', openLesson === key && 'rotate-180')} />
                         </button>
@@ -252,22 +304,9 @@ export function ImportQuestionsModal({ open, onClose, courses = [], fixedCourse,
 
         {!preview ? (
           <>
-            <div className="rounded-xl bg-gray-50 p-4 text-sm text-gray-700">
-              <p className="font-semibold text-ink">Comment rédiger le document ?</p>
-              <pre className="mt-2 font-sans whitespace-pre-wrap">{`1. Quel élément affiche les informations ?
-a) Le clavier
-b) L'écran      ← en gras, ou suivi de *, ou ligne « Réponse : b »
-c) La souris
-
-2. Une clé USB sert à transporter des fichiers.
-Réponse : Vrai
-
-3. Logiciel pour naviguer sur Internet ?
-Réponse : navigateur | navigateur web`}</pre>
-              <p className="mt-2">Plusieurs bonnes réponses = choix multiples · « (2 points) » pour le barème · « [Pratique] » pour un exercice à rendre.</p>
-            </div>
-            <DropZone accept={QUESTION_FORMATS} busy={busy} label="Choisir le document des questions" hint="Word (.docx), PDF ou texte" onFile={(f) => { setFile(f); send(true, f) }} />
-            <Button variant="ghost" size="sm" onClick={() => api.download('/trainer/import/templates/questions', 'modele-questions-aluni.docx')}><Download className="size-4" />Télécharger le modèle Word des questions</Button>
+            <FormatGuide />
+            <DropZone accept={QUESTION_FORMATS} busy={busy} label="Choisir le document de vos questions" hint="Word (.docx), PDF ou texte" onFile={(f) => { setFile(f); send(true, f) }} />
+            <Button variant="outline-gray" size="sm" onClick={() => api.download('/trainer/import/templates/questions', 'modele-questions-aluni.docx')}><Download className="size-4" />Télécharger un modèle Word prêt à remplir</Button>
           </>
         ) : (
           <>

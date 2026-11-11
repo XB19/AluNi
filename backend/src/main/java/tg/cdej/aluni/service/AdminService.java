@@ -33,7 +33,6 @@ import tg.cdej.aluni.dto.AdminDtos.AdminDashboard;
 import tg.cdej.aluni.dto.AdminDtos.ImportResult;
 import tg.cdej.aluni.dto.AdminDtos.ImportRow;
 import tg.cdej.aluni.dto.AdminDtos.LabelValue;
-import tg.cdej.aluni.dto.AdminDtos.PendingCourse;
 import tg.cdej.aluni.dto.AdminDtos.PendingEnrollment;
 import tg.cdej.aluni.dto.AdminDtos.PendingTrainer;
 import tg.cdej.aluni.dto.AdminDtos.Validations;
@@ -105,7 +104,6 @@ public class AdminService {
         stats.put("learners", learners.size());
         stats.put("learnersThisMonth", learners.stream().filter(u -> u.getCreatedAt().isAfter(monthStart)).count());
         stats.put("activeCourses", courses.countByStatus(CourseStatus.PUBLIEE));
-        stats.put("pendingCourses", courses.countByStatus(CourseStatus.EN_VALIDATION));
         stats.put("successRate", successRate(done));
         stats.put("certificates", certificates.count() - certificates.countByStatus(CertificateStatus.EN_ATTENTE));
         stats.put("revoked", certificates.countByStatus(CertificateStatus.REVOQUE));
@@ -126,7 +124,7 @@ public class AdminService {
                 new LabelValue("Particuliers", learners.stream().filter(u -> u.getProfileType() == ProfileType.PARTICULIER).count()));
 
         Validations v = validations();
-        return new AdminDashboard(stats, monthly, profiles, v.trainers(), v.courses(),
+        return new AdminDashboard(stats, monthly, profiles, v.trainers(),
                 certificates.findAllByOrderByIssuedAtDescIdDesc().stream().limit(5).map(mapper::certificate).toList());
     }
 
@@ -142,7 +140,6 @@ public class AdminService {
 
     private long validationsCount() {
         return users.findByRoleAndStatusOrderByCreatedAtAsc(Role.FORMATEUR, AccountStatus.EN_ATTENTE).size()
-                + courses.countByStatus(CourseStatus.EN_VALIDATION)
                 + enrollments.findByStatusOrderByEnrolledAtAsc(EnrollmentStatus.EN_ATTENTE).size()
                 + certificates.countByStatus(CertificateStatus.EN_ATTENTE);
     }
@@ -259,14 +256,10 @@ public class AdminService {
         List<PendingTrainer> trainers = users.findByRoleAndStatusOrderByCreatedAtAsc(Role.FORMATEUR, AccountStatus.EN_ATTENTE)
                 .stream().map(u -> new PendingTrainer(u.getId(), u.fullName(), u.getEmail(), Texts.display(u.getPhone()),
                         u.getSpeciality(), u.getCreatedAt())).toList();
-        List<PendingCourse> pendingCourses = courses.findByStatusOrderByCreatedAtAsc(CourseStatus.EN_VALIDATION).stream()
-                .map(c -> new PendingCourse(c.getId(), c.getSlug(), c.getTitle(), c.getTrainer().fullName(),
-                        c.getCategory().getSlug(), c.getModules().size(),
-                        c.getSubmittedAt() == null ? c.getCreatedAt() : c.getSubmittedAt())).toList();
         List<PendingEnrollment> pendingEnrollments = enrollments.findByStatusOrderByEnrolledAtAsc(EnrollmentStatus.EN_ATTENTE)
                 .stream().map(e -> new PendingEnrollment(e.getId(), e.getUser().fullName(), Codes.of(e.getUser().getProfileType()),
                         mapper.courseRef(e.getCourse()), e.getEnrolledAt())).toList();
-        return new Validations(trainers, pendingCourses, pendingEnrollments,
+        return new Validations(trainers, pendingEnrollments,
                 certificates.findByStatusOrderByIssuedAtAsc(CertificateStatus.EN_ATTENTE).stream().map(mapper::certificate).toList());
     }
 
@@ -282,17 +275,6 @@ public class AdminService {
                 if (u.getPhone() != null) sender.sendSms(u.getPhone(), text);
                 if (u.getEmail() != null) sender.sendEmail(u.getEmail(), "Votre demande de compte formateur", text);
                 if (approve) notifications.notify(u, NotificationType.ACCOUNT, "Compte formateur activé", text, "/formateur");
-            }
-            case "courses" -> {
-                Course c = courses.findById(Long.valueOf(id)).filter(x -> x.getStatus() == CourseStatus.EN_VALIDATION)
-                        .orElseThrow(() -> ApiException.notFound("Formation introuvable."));
-                c.setStatus(approve ? CourseStatus.PUBLIEE : CourseStatus.REFUSEE);
-                c.setReviewComment(comment);
-                notifications.notify(c.getTrainer(), NotificationType.COURSE,
-                        approve ? "Formation publiée" : "Formation à revoir",
-                        approve ? "« " + c.getTitle() + " » est maintenant visible dans le catalogue."
-                                : "« " + c.getTitle() + " » n'a pas été validée." + (comment == null ? "" : " Motif : " + comment),
-                        "/formateur/formations/" + c.getId());
             }
             case "enrollments" -> {
                 Enrollment e = enrollments.findById(Long.valueOf(id)).filter(x -> x.getStatus() == EnrollmentStatus.EN_ATTENTE)

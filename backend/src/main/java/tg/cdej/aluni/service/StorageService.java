@@ -9,8 +9,6 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
-import org.springframework.core.io.PathResource;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -35,10 +33,6 @@ public class StorageService {
     public static final Set<String> DOCUMENTS = Set.of("jpg", "jpeg", "png", "webp", "gif", "pdf", "doc", "docx",
             "xls", "xlsx", "ppt", "pptx", "txt", "zip", "mp4", "webm", "mp3");
 
-    /** Exercices déposés par les apprenants : privés et toujours téléchargés (jamais affichés), le code source est permis. */
-    public static final Set<String> SUBMISSIONS = Set.of("jpg", "jpeg", "png", "webp", "gif", "pdf", "doc", "docx",
-            "xls", "xlsx", "ppt", "pptx", "txt", "zip", "html", "css", "js", "py", "mp4", "webm", "mp3");
-
     private final Path root;
 
     public StorageService(AppProperties props) throws IOException {
@@ -60,11 +54,6 @@ public class StorageService {
     /** Enregistre un fichier public et renvoie son URL (/files/dossier/nom). */
     public String storePublic(MultipartFile file, String folder, Set<String> allowed) {
         return "/files/" + store(file, "public", folder, allowed);
-    }
-
-    /** Enregistre un fichier privé et renvoie son chemin relatif. */
-    public String storePrivate(MultipartFile file, String folder, Set<String> allowed) {
-        return store(file, "private", folder, allowed);
     }
 
     private String store(MultipartFile file, String visibility, String folder, Set<String> allowed) {
@@ -95,11 +84,5 @@ public class StorageService {
             throw new IllegalStateException("Impossible d'enregistrer le fichier", e);
         }
         return "/files/" + relative;
-    }
-
-    public Resource loadPrivate(String relative) {
-        Path path = root.resolve("private").resolve(relative).normalize();
-        if (!path.startsWith(root) || !Files.exists(path)) throw ApiException.notFound("Fichier introuvable.");
-        return new PathResource(path);
     }
 }

@@ -1,11 +1,13 @@
 package tg.cdej.aluni.web;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,11 +23,12 @@ import jakarta.validation.Valid;
 import tg.cdej.aluni.dto.CourseDtos.CourseEdit;
 import tg.cdej.aluni.dto.CourseDtos.TrainerCourseDto;
 import tg.cdej.aluni.dto.ExamDtos.ExamSettings;
+import tg.cdej.aluni.dto.ExamDtos.SessionDto;
+import tg.cdej.aluni.dto.ExamDtos.SessionRequest;
+import tg.cdej.aluni.dto.TrainerDtos.ModeRequest;
 import tg.cdej.aluni.dto.ImportDtos.CourseImportPreview;
 import tg.cdej.aluni.dto.ImportDtos.QuestionImportResult;
 import tg.cdej.aluni.dto.LearningDtos.FileDto;
-import tg.cdej.aluni.dto.LearningDtos.GradeRequest;
-import tg.cdej.aluni.dto.LearningDtos.SubmissionDto;
 import tg.cdej.aluni.dto.TrainerDtos.QuestionDto;
 import tg.cdej.aluni.dto.TrainerDtos.QuestionRequest;
 import tg.cdej.aluni.dto.TrainerDtos.TrainerDashboard;
@@ -85,9 +88,29 @@ public class TrainerController {
         return trainer.update(current.get(), id, body);
     }
 
-    @PostMapping("/courses/{id}/submit")
-    public CourseEdit submit(@PathVariable Long id) {
-        return trainer.submit(current.get(), id);
+    @PatchMapping("/enrollments/{id}/mode")
+    public Map<String, String> setMode(@PathVariable Long id, @Valid @RequestBody ModeRequest body) {
+        return Map.of("mode", trainer.setMode(current.get(), id, body.mode()));
+    }
+
+    @GetMapping("/courses/{id}/exam/sessions")
+    public List<SessionDto> sessions(@PathVariable Long id) {
+        return trainer.sessions(current.get(), id);
+    }
+
+    @PostMapping("/courses/{id}/exam/sessions")
+    public SessionDto createSession(@PathVariable Long id, @Valid @RequestBody SessionRequest body) {
+        return trainer.createSession(current.get(), id, body);
+    }
+
+    @DeleteMapping("/exam-sessions/{id}")
+    public void deleteSession(@PathVariable Long id) {
+        trainer.deleteSession(current.get(), id);
+    }
+
+    @PostMapping("/courses/{id}/publish")
+    public CourseEdit publish(@PathVariable Long id) {
+        return trainer.publish(current.get(), id);
     }
 
     @GetMapping("/courses/{id}/exam")
@@ -126,16 +149,6 @@ public class TrainerController {
     @GetMapping("/learners")
     public List<TrainerLearnerDto> learners(@RequestParam(required = false) String course) {
         return trainer.learners(current.get(), course);
-    }
-
-    @GetMapping("/submissions")
-    public List<SubmissionDto> submissions() {
-        return trainer.submissions(current.get());
-    }
-
-    @PostMapping("/submissions/{id}/grade")
-    public SubmissionDto grade(@PathVariable Long id, @Valid @RequestBody GradeRequest body) {
-        return trainer.grade(current.get(), id, body);
     }
 
     // ----- Import de documents

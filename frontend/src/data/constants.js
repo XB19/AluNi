@@ -27,9 +27,7 @@ export const STATUS_LABELS = {
 
 export const COURSE_STATUS = {
   brouillon: { label: 'Brouillon', tone: 'gray' },
-  'en-validation': { label: 'En validation', tone: 'amber' },
   publiee: { label: 'Publiée', tone: 'green' },
-  refusee: { label: 'À revoir', tone: 'red' },
   archivee: { label: 'Archivée', tone: 'gray' },
 }
 
@@ -38,7 +36,6 @@ export const QUESTION_TYPES = {
   multiple: 'QCM – réponses multiples',
   vraifaux: 'Vrai / Faux',
   courte: 'Réponse courte',
-  pratique: 'Exercice pratique (fichier)',
 }
 
 export const LESSON_TYPES = { video: 'Vidéo', texte: 'Lecture', pdf: 'Document PDF', image: 'Image' }
@@ -58,3 +55,24 @@ export const formatDate = (d, opts = { day: 'numeric', month: 'long', year: 'num
 
 export const formatDateTime = (d) =>
   d ? new Date(d).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''
+
+// Modalités de suivi d'une formation
+export const LEARNING_MODES = {
+  salle: {
+    label: 'En salle',
+    tone: 'blue',
+    text: "Cours donné par le formateur à l'Académie. Examen final lors de la session qu'il programme : une seule tentative.",
+  },
+  'en-ligne': {
+    label: 'En ligne',
+    tone: 'green',
+    text: "Modules suivis à votre rythme. Examen final ouvert dès que tous les modules sont terminés : tentatives illimitées jusqu'à la réussite.",
+  },
+}
+
+// Heure de l'Académie (Kpévé, Togo), quel que soit le fuseau de l'appareil
+const ZONE = { timeZone: 'Africa/Lome' }
+export const formatHour = (d) => new Date(d).toLocaleTimeString('fr-FR', { ...ZONE, hour: '2-digit', minute: '2-digit' }).replace(':', 'h')
+/** « jeudi 20 novembre, 9h00 – 11h00 » */
+export const formatSession = (s) =>
+  s ? `${new Date(s.startsAt).toLocaleDateString('fr-FR', { ...ZONE, weekday: 'long', day: 'numeric', month: 'long' })}, ${formatHour(s.startsAt)} – ${formatHour(s.endsAt)}` : ''

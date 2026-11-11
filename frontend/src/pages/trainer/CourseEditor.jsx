@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import {
-  ArrowDown, ArrowLeft, ArrowUp, Bold, CheckCircle2, Circle, Eye, FileUp, Heading2, ImagePlus, Italic, Link2, List, Plus, Save, Send, Sparkles, Trash2, Upload,
+  Archive, ArrowDown, ArrowLeft, ArrowUp, Bold, CalendarClock, CheckCircle2, Circle, Eye, FileText, FileUp, Heading2, ListChecks, ImagePlus, Italic, Link2, List, Plus, Save, Send, Sparkles, Trash2, Upload,
 } from 'lucide-react'
-import { CERT_TYPES, LESSON_TYPES, LEVELS, QUESTION_TYPES } from '../../data/constants'
+import { CERT_TYPES, LEARNING_MODES, LESSON_TYPES, LEVELS, QUESTION_TYPES, formatSession } from '../../data/constants'
 import { api, fileUrl, qs } from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
 import { useApi } from '../../api/useApi'
@@ -127,10 +127,86 @@ function LessonModal({ lesson, onSave, onClose }) {
             </div>
           )}
         </div>
-        <Toggle checked={!!l.practical} onChange={(v) => setL({ ...l, practical: v })} label="Exercice pratique à rendre"
-          description="L'apprenant dépose un fichier (photo, document…) que vous corrigez et notez sur 20." />
       </div>
     </Modal>
+  )
+}
+
+/** Rappel de ce que voient les apprenants de chaque modalité. */
+function SideIntro({ mode, children }) {
+  const m = LEARNING_MODES[mode]
+  return (
+    <div className={cx('rounded-2xl border p-4 text-sm', mode === 'salle' ? 'border-blue-100 bg-blue-50 text-blue-900' : 'border-brand-100 bg-brand-50 text-brand-900')}>
+      <Badge tone={m.tone} className="mb-1.5">{m.label}</Badge>
+      <p>{children}</p>
+    </div>
+  )
+}
+
+/** Sessions d'examen pour les apprenants en salle : le formateur fixe le jour et le créneau horaire. */
+function RoomSessions({ course }) {
+  const sessions = useApi(`/trainer/courses/${course.id}/exam/sessions`)
+  const durationMin = useApi(`/trainer/courses/${course.id}/exam`).data?.durationMin ?? 20
+  const [form, setForm] = useState({ date: '', start: '09:00', end: '11:00' })
+  const [error, setError] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  const create = async (e) => {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      await api.post(`/trainer/courses/${course.id}/exam/sessions`, form)
+      setForm({ ...form, date: '' })
+      sessions.reload()
+    } catch (err) {
+      setError(err)
+    } finally {
+      setBusy(false)
+    }
+  }
+  const remove = async (id) => {
+    setError(null)
+    try {
+      await api.del(`/trainer/exam-sessions/${id}`)
+      sessions.reload()
+    } catch (err) {
+      setError(err)
+    }
+  }
+  const list = sessions.data ?? []
+
+  return (
+    <div className="card p-6">
+      <h2 className="flex items-center gap-2 text-lg font-bold"><CalendarClock className="size-5 text-flame-500" />3. Examen final : sessions en salle</h2>
+      <p className="mt-1 text-sm text-gray-600">
+        Pour vos apprenants qui suivent le cours à l'Académie : programmez l'examen à la fin de votre cours. Ils ne peuvent composer que pendant
+        le créneau, en une seule tentative ; ils sont prévenus dès que la session est programmée.
+      </p>
+      <form onSubmit={create} className="mt-4 grid grid-cols-2 gap-3">
+        <Field label="Jour de l'examen" className="col-span-2"><input type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="input" /></Field>
+        <Field label="Début"><input type="time" required value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} className="input" /></Field>
+        <Field label="Fin"><input type="time" required value={form.end} onChange={(e) => setForm({ ...form, end: e.target.value })} className="input" /></Field>
+        <Button type="submit" disabled={busy} className="col-span-2 sm:col-span-1 sm:justify-self-start"><Plus className="size-4" />Programmer la session</Button>
+      </form>
+      <p className="mt-2 text-xs text-gray-500">Heure de l'Académie (Lomé). Le créneau doit durer au moins {durationMin} min, la durée de l'examen.</p>
+      <div className="mt-3"><FormError error={error} /></div>
+      {list.length ? (
+        <ul className="mt-4 divide-y divide-gray-100 rounded-xl border border-gray-200">
+          {list.map((x) => (
+            <li key={x.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
+              <span className="min-w-0 flex-1 font-semibold first-letter:uppercase">{formatSession(x)}</span>
+              {x.running ? <Badge tone="flame">En cours</Badge> : x.past ? <Badge>Terminée</Badge> : <Badge tone="blue">À venir</Badge>}
+              {!x.running && !x.past && (
+                <button onClick={() => remove(x.id)} className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600" aria-label="Supprimer la session"><Trash2 className="size-4" /></button>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-4 rounded-xl bg-gray-50 p-4 text-sm text-gray-600">Aucune session programmée. Vos apprenants en salle ne peuvent pas encore passer l'examen.</p>
+      )}
+    </div>
   )
 }
 
@@ -149,13 +225,13 @@ function ExamTab({ course }) {
     return <p className="card p-6 text-gray-600">Cette formation ne délivre qu'une attestation de suivi : aucun examen final n'est nécessaire.</p>
   }
   if (!s || bank.loading) return <Loading />
-  const pool = (bank.data ?? []).filter((q) => !q.module && q.type !== 'pratique')
+  const pool = (bank.data ?? []).filter((q) => !q.module)
   const set = (patch) => { setS({ ...s, ...patch }); setSaved(false) }
 
   const save = async () => {
     setError(null)
     try {
-      setS(await api.put(`/trainer/courses/${course.id}/exam`, { ...s, opensAt: s.opensAt || null, closesAt: s.closesAt || null }))
+      setS(await api.put(`/trainer/courses/${course.id}/exam`, s))
       setSaved(true)
     } catch (e) {
       setError(e)
@@ -164,34 +240,44 @@ function ExamTab({ course }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <div className="card p-6">
-        <h2 className="mb-4 text-lg font-bold">Paramètres de l'examen final</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Intitulé" className="sm:col-span-2"><input value={s.title} onChange={(e) => set({ title: e.target.value })} className="input" /></Field>
-          <Field label="Durée (minutes)"><input type="number" min={5} value={s.durationMin} onChange={(e) => set({ durationMin: +e.target.value })} className="input" /></Field>
-          <Field label="Questions par candidat"><input type="number" min={1} value={s.questionCount} onChange={(e) => set({ questionCount: +e.target.value })} className="input" /></Field>
-          <Field label="Note minimale (/100)"><input type="number" min={0} max={100} value={s.passMark} onChange={(e) => set({ passMark: +e.target.value })} className="input" /></Field>
-          <Field label="Tentatives autorisées"><input type="number" min={1} max={10} value={s.attemptsAllowed} onChange={(e) => set({ attemptsAllowed: +e.target.value })} className="input" /></Field>
-          <Field label="Ouverture"><input type="date" value={s.opensAt ?? ''} onChange={(e) => set({ opensAt: e.target.value })} className="input" /></Field>
-          <Field label="Fermeture"><input type="date" value={s.closesAt ?? ''} onChange={(e) => set({ closesAt: e.target.value })} className="input" /></Field>
+      <div className="space-y-6">
+        <div className="card p-6">
+          <h2 className="mb-4 text-lg font-bold">Paramètres de l'examen final</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Intitulé" className="sm:col-span-2"><input value={s.title} onChange={(e) => set({ title: e.target.value })} className="input" /></Field>
+            <Field label="Durée (minutes)"><input type="number" min={5} value={s.durationMin} onChange={(e) => set({ durationMin: +e.target.value })} className="input" /></Field>
+            <Field label="Questions par candidat"><input type="number" min={1} value={s.questionCount} onChange={(e) => set({ questionCount: +e.target.value })} className="input" /></Field>
+            <Field label="Note minimale (/100)"><input type="number" min={0} max={100} value={s.passMark} onChange={(e) => set({ passMark: +e.target.value })} className="input" /></Field>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {Object.entries(LEARNING_MODES).map(([k, m]) => (
+              <div key={k} className="rounded-xl bg-gray-50 p-3 text-sm">
+                <Badge tone={m.tone}>{m.label}</Badge>
+                <p className="mt-1.5 text-gray-600">{m.text}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 divide-y divide-gray-100">
+            <Toggle checked={s.randomize} onChange={(v) => set({ randomize: v })} label="Tirage aléatoire des questions" description="Chaque candidat reçoit des questions et des réponses dans un ordre différent (et de nouvelles questions à chaque tentative en ligne)." />
+            <Toggle checked={s.showCorrection} onChange={(v) => set({ showCorrection: v })} label="Afficher la correction après l'examen" />
+            <Toggle checked={s.roomOnly} onChange={(v) => set({ roomOnly: v })} label="Sessions en salle : postes de l'Académie uniquement" description="Les apprenants en salle ne peuvent composer que depuis les ordinateurs de la salle informatique." />
+            <Toggle checked={s.requiresAdminValidation} onChange={(v) => set({ requiresAdminValidation: v })} label="Certificat soumis à validation de l'administrateur" />
+          </div>
+          <div className="mt-4"><FormError error={error} /></div>
+          <Button className="mt-4" onClick={save}><Save className="size-4" />Enregistrer l'examen</Button>
+          {saved && <span className="ml-3 text-sm font-semibold text-brand-700">Enregistré ✓</span>}
         </div>
-        <div className="mt-4 divide-y divide-gray-100">
-          <Toggle checked={s.randomize} onChange={(v) => set({ randomize: v })} label="Tirage aléatoire des questions" description="Chaque candidat reçoit des questions et des réponses dans un ordre différent." />
-          <Toggle checked={s.showCorrection} onChange={(v) => set({ showCorrection: v })} label="Afficher la correction après l'examen" />
-          <Toggle checked={s.roomOnly} onChange={(v) => set({ roomOnly: v })} label="Mode « examen en salle »" description="Examen accessible uniquement depuis les postes de la salle de l'Académie (certification supervisée)." />
-          <Toggle checked={s.requiresAdminValidation} onChange={(v) => set({ requiresAdminValidation: v })} label="Certificat soumis à validation de l'administrateur" />
-        </div>
-        <div className="mt-4"><FormError error={error} /></div>
-        <Button className="mt-4" onClick={save}><Save className="size-4" />Enregistrer l'examen</Button>
-        {saved && <span className="ml-3 text-sm font-semibold text-brand-700">Enregistré ✓</span>}
+        <p className="rounded-xl bg-blue-50 p-4 text-sm text-blue-900">
+          Les sessions d'examen de vos apprenants en salle se programment dans l'onglet <strong>« 3. Cours en salle »</strong>.
+        </p>
       </div>
       <div className="card p-6">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold">Questions de l'examen</h2>
             <p className="mb-4 text-sm text-gray-600">{s.questionIds.length} question(s) sélectionnée(s) · {Math.min(s.questionCount, s.questionIds.length)} tirée(s) par candidat</p>
           </div>
-          <div className="flex shrink-0 gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline-gray" onClick={() => setImporting(true)}><FileUp className="size-4" />Importer (Word, PDF)</Button>
             <Button size="sm" variant="secondary" onClick={() => setAdding(true)}><Plus className="size-4" />Créer</Button>
           </div>
@@ -291,13 +377,13 @@ export default function CourseEditor() {
     }
   }
 
-  const submit = async () => {
+  const publish = async () => {
     if (dirty && !(await save())) return
     setError(null)
     try {
-      const res = await api.post(`/trainer/courses/${c.id}/submit`)
-      setC({ ...c, status: res.status, reviewComment: null })
-      setToast("Formation soumise à l'administration")
+      const res = await api.post(`/trainer/courses/${c.id}/publish`)
+      setC({ ...c, status: res.status })
+      setToast('Formation publiée : elle est visible dans le catalogue')
     } catch (e) {
       setError(e)
     }
@@ -306,8 +392,8 @@ export default function CourseEditor() {
   const lessonsTotal = c.modules.reduce((n, m) => n + m.lessons.length, 0)
   const checks = [
     { ok: c.title.trim().length > 5 && (c.short ?? '').trim().length > 0, label: 'Titre et résumé renseignés' },
-    { ok: c.modules.length > 0, label: 'Au moins un module' },
-    { ok: lessonsTotal > 0, label: 'Au moins une leçon' },
+    { ok: c.modules.length > 0, label: 'Cours en ligne : au moins un module' },
+    { ok: lessonsTotal > 0, label: 'Cours en ligne : au moins une leçon' },
     { ok: !dirty, label: 'Modifications enregistrées' },
   ]
   const category = categories.find((x) => x.id === c.category)
@@ -323,13 +409,13 @@ export default function CourseEditor() {
           <Button onClick={save} disabled={busy || (!dirty && !isNew)}><Save className="size-4" />{busy ? 'Enregistrement…' : 'Enregistrer'}</Button>
         </>}
       />
-      {c.status === 'refusee' && c.reviewComment && <p className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-800"><strong>À revoir :</strong> {c.reviewComment}</p>}
       <FormError error={error} />
       <Tabs className="mt-2 mb-6" value={tab} onChange={setTab} tabs={[
         { value: 'infos', label: '1. Informations' },
-        { value: 'contenu', label: '2. Contenu', count: c.modules.length },
-        { value: 'examen', label: '3. Examen' },
-        { value: 'publication', label: '4. Publication' },
+        { value: 'contenu', label: '2. Cours en ligne', count: c.modules.length },
+        { value: 'salle', label: '3. Cours en salle' },
+        { value: 'examen', label: '4. Examen final' },
+        { value: 'publication', label: '5. Publication' },
       ]} />
 
       {c.modules.length === 0 && (
@@ -384,13 +470,17 @@ export default function CourseEditor() {
             </div>
           </div>
           <div className="flex gap-3 lg:col-span-2">
-            <Button onClick={() => setTab('contenu')} variant="outline-gray">Continuer vers le contenu</Button>
+            <Button onClick={() => setTab('contenu')} variant="outline-gray">Continuer vers le cours en ligne</Button>
           </div>
         </div>
       )}
 
       {tab === 'contenu' && (
         <div className="space-y-4">
+          <SideIntro mode="en-ligne">
+            Vos apprenants <strong>en ligne</strong> suivent ces modules et leçons à leur rythme, dans l'ordre, avec les quiz d'entraînement de chaque module.
+            L'examen final s'ouvre pour eux dès que toutes les leçons sont terminées.
+          </SideIntro>
           {c.modules.map((m, mi) => (
             <div key={m.id ?? `new-${mi}`} className="card overflow-hidden">
               <div className="flex items-center gap-3 border-b border-gray-100 bg-gray-50 px-4 py-3">
@@ -407,7 +497,7 @@ export default function CourseEditor() {
                     <li key={l.id ?? `new-${li}`} className="flex items-center gap-3 px-4 py-3">
                       <Icon className="size-4.5 shrink-0 text-gray-400" />
                       <button onClick={() => setEditing({ mi, li })} className="min-w-0 flex-1 truncate text-left text-[15px] hover:text-brand-700">{l.title}</button>
-                      {l.practical && <Badge tone="flame">À rendre</Badge>}
+                      
                       <span className="hidden text-sm text-gray-500 sm:inline">{LESSON_TYPES[l.type]}{l.duration ? ` · ${l.duration}` : ''}</span>
                       <button disabled={li === 0} onClick={() => setModules(c.modules.map((x, i) => { if (i !== mi) return x; const ls = [...x.lessons]; [ls[li - 1], ls[li]] = [ls[li], ls[li - 1]]; return { ...x, lessons: ls } }))} className="rounded p-1.5 text-gray-400 hover:bg-gray-100 disabled:opacity-30" aria-label="Monter la leçon"><ArrowUp className="size-4" /></button>
                       <button onClick={() => setModules(c.modules.map((x, i) => (i === mi ? { ...x, lessons: x.lessons.filter((_, j) => j !== li) } : x)))} className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600" aria-label="Supprimer la leçon"><Trash2 className="size-4" /></button>
@@ -428,15 +518,53 @@ export default function CourseEditor() {
         </div>
       )}
 
+      {tab === 'salle' && (
+        <div className="space-y-6">
+          <SideIntro mode="salle">
+            Vos apprenants <strong>en salle</strong> (CDEJ) suivent le cours avec vous à l'Académie. Sur la plateforme, ils voient seulement :
+            le <strong>support du cours</strong> à télécharger, les <strong>quiz d'entraînement</strong> (notés, sans certificat) et
+            l'<strong>examen final</strong>, ouvert uniquement pendant la session que vous programmez.
+          </SideIntro>
+          <div className="card p-6">
+            <h2 className="flex items-center gap-2 text-lg font-bold"><FileText className="size-5 text-red-600" />1. Support du cours (PDF)</h2>
+            <p className="mt-1 mb-4 text-sm text-gray-600">Le document que vos apprenants téléchargent pendant que vous présentez les modules.</p>
+            {c.support ? (
+              <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 p-3">
+                <FileText className="size-6 text-red-600" />
+                <a href={fileUrl(c.support)} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-sm font-semibold text-brand-700 hover:underline">Support de cours (PDF) — ouvrir</a>
+                <button onClick={() => update({ support: null })} className="text-sm text-red-600 hover:underline">Retirer</button>
+              </div>
+            ) : (
+              <FileUpload label="Déposer le cours en PDF" accept="application/pdf,.pdf" onUploaded={(f) => update({ support: f.url })}><FileText className="size-7 text-gray-400" /></FileUpload>
+            )}
+            {dirty && <Button className="mt-4" onClick={save} disabled={busy}><Save className="size-4" />Enregistrer</Button>}
+          </div>
+          <div className="card p-6">
+            <h2 className="flex items-center gap-2 text-lg font-bold"><ListChecks className="size-5 text-flame-500" />2. Quiz d'entraînement</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Les quiz rattachés aux modules sont aussi proposés à vos apprenants en salle. Ils donnent une note pour s'entraîner, pas de certificat.
+            </p>
+            <Button size="sm" variant="outline-gray" className="mt-4" to="/formateur/questions">Gérer les quiz dans la banque de questions</Button>
+          </div>
+          {isNew ? (
+            <p className="card p-6 text-gray-600">Enregistrez d'abord la formation pour programmer l'examen final.</p>
+          ) : c.certTypes.includes('competence') ? (
+            <RoomSessions course={c} />
+          ) : (
+            <p className="card p-6 text-gray-600">Cette formation ne délivre qu'une attestation de suivi : pas d'examen final à programmer.</p>
+          )}
+        </div>
+      )}
+
       {tab === 'examen' && (isNew ? <p className="card p-6 text-gray-600">Enregistrez d'abord la formation pour configurer son examen final.</p> : <ExamTab course={c} />)}
 
       {tab === 'publication' && (
         <div className="card max-w-2xl p-6">
-          {c.status === 'en-validation' ? (
+          {c.status === 'archivee' ? (
             <div className="py-8 text-center">
-              <CheckCircle2 className="mx-auto size-14 text-brand-600" />
-              <h2 className="mt-4 text-xl font-bold">Formation en cours de validation</h2>
-              <p className="mt-2 text-gray-600">L'administrateur va vérifier votre formation avant sa publication dans le catalogue. Vous serez notifié de sa décision.</p>
+              <Archive className="mx-auto size-14 text-gray-400" />
+              <h2 className="mt-4 text-xl font-bold">Formation archivée</h2>
+              <p className="mt-2 text-gray-600">L'administration de l'Académie l'a retirée du catalogue. Contactez-la pour la republier.</p>
             </div>
           ) : c.status === 'publiee' ? (
             <div className="py-8 text-center">
@@ -448,18 +576,21 @@ export default function CourseEditor() {
           ) : (
             <>
               <h2 className="text-lg font-bold">Prête pour la publication ?</h2>
-              <p className="mt-1 text-gray-600">Vérifiez les points suivants avant de soumettre la formation à l'administration de l'Académie.</p>
+              <p className="mt-1 text-gray-600">Vérifiez les points suivants : dès que vous publiez, la formation est visible dans le catalogue et les apprenants peuvent s'y inscrire.</p>
               <ul className="mt-5 space-y-3">
                 {checks.map((ch) => (
                   <li key={ch.label} className={cx('flex items-center gap-3', ch.ok ? 'text-ink' : 'text-gray-500')}>
                     {ch.ok ? <CheckCircle2 className="size-5 text-brand-600" /> : <Circle className="size-5 text-gray-300" />}{ch.label}
                   </li>
                 ))}
+                <li className={cx('flex items-center gap-3', c.support ? 'text-ink' : 'text-gray-500')}>
+                  {c.support ? <CheckCircle2 className="size-5 text-brand-600" /> : <Circle className="size-5 text-gray-300" />}Cours en salle : support PDF déposé (conseillé, onglet 3)
+                </li>
                 {c.certTypes.includes('competence') && (
-                  <li className="flex items-center gap-3 text-gray-500"><Circle className="size-5 text-gray-300" />Examen final configuré avec ses questions (onglet 3)</li>
+                  <li className="flex items-center gap-3 text-gray-500"><Circle className="size-5 text-gray-300" />Examen final configuré avec ses questions (onglet 4)</li>
                 )}
               </ul>
-              <Button className="mt-6" disabled={isNew || !checks.slice(0, 3).every((ch) => ch.ok)} onClick={submit}><Send className="size-4" />Soumettre pour publication</Button>
+              <Button className="mt-6" disabled={isNew || !checks.slice(0, 3).every((ch) => ch.ok)} onClick={publish}><Send className="size-4" />Publier la formation</Button>
             </>
           )}
         </div>
@@ -474,7 +605,7 @@ export default function CourseEditor() {
 
       {editing && (
         <LessonModal
-          lesson={editing.li == null ? { title: '', type: 'texte', duration: '10 min', content: '', practical: false } : c.modules[editing.mi].lessons[editing.li]}
+          lesson={editing.li == null ? { title: '', type: 'texte', duration: '10 min', content: '' } : c.modules[editing.mi].lessons[editing.li]}
           onSave={saveLesson}
           onClose={() => setEditing(null)}
         />

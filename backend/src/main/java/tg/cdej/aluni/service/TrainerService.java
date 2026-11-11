@@ -1,5 +1,6 @@
 package tg.cdej.aluni.service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -26,6 +27,8 @@ import tg.cdej.aluni.domain.CourseStatus;
 import tg.cdej.aluni.domain.Enrollment;
 import tg.cdej.aluni.domain.EnrollmentStatus;
 import tg.cdej.aluni.domain.Exam;
+import tg.cdej.aluni.domain.ExamSession;
+import tg.cdej.aluni.domain.LearningMode;
 import tg.cdej.aluni.domain.ExamAttempt;
 import tg.cdej.aluni.domain.Lesson;
 import tg.cdej.aluni.domain.LessonType;
@@ -34,16 +37,15 @@ import tg.cdej.aluni.domain.NotificationType;
 import tg.cdej.aluni.domain.Question;
 import tg.cdej.aluni.domain.QuestionType;
 import tg.cdej.aluni.domain.Role;
-import tg.cdej.aluni.domain.Submission;
-import tg.cdej.aluni.domain.SubmissionStatus;
 import tg.cdej.aluni.domain.User;
 import tg.cdej.aluni.dto.CourseDtos.CourseEdit;
 import tg.cdej.aluni.dto.CourseDtos.LessonEdit;
 import tg.cdej.aluni.dto.CourseDtos.ModuleEdit;
 import tg.cdej.aluni.dto.CourseDtos.TrainerCourseDto;
 import tg.cdej.aluni.dto.ExamDtos.ExamSettings;
-import tg.cdej.aluni.dto.LearningDtos.GradeRequest;
-import tg.cdej.aluni.dto.LearningDtos.SubmissionDto;
+import tg.cdej.aluni.dto.ExamDtos.SessionDto;
+import tg.cdej.aluni.dto.ExamDtos.SessionRequest;
+import tg.cdej.aluni.dto.TrainerDtos.ExamResultRow;
 import tg.cdej.aluni.dto.TrainerDtos.FraudAlert;
 import tg.cdej.aluni.dto.TrainerDtos.QuestionDto;
 import tg.cdej.aluni.dto.TrainerDtos.QuestionRequest;
@@ -54,9 +56,9 @@ import tg.cdej.aluni.repository.CourseModuleRepository;
 import tg.cdej.aluni.repository.CourseRepository;
 import tg.cdej.aluni.repository.EnrollmentRepository;
 import tg.cdej.aluni.repository.ExamAttemptRepository;
+import tg.cdej.aluni.repository.ExamSessionRepository;
 import tg.cdej.aluni.repository.ExamRepository;
 import tg.cdej.aluni.repository.QuestionRepository;
-import tg.cdej.aluni.repository.SubmissionRepository;
 import tg.cdej.aluni.repository.UserRepository;
 
 @Service
@@ -68,8 +70,8 @@ public class TrainerService {
     private final EnrollmentRepository enrollments;
     private final ExamRepository exams;
     private final ExamAttemptRepository attempts;
+    private final ExamSessionRepository sessions;
     private final QuestionRepository questions;
-    private final SubmissionRepository submissions;
     private final UserRepository users;
     private final LearningService learning;
     private final NotificationService notifications;
@@ -77,8 +79,8 @@ public class TrainerService {
     private final Mapper mapper;
 
     public TrainerService(CourseRepository courses, CategoryRepository categories, CourseModuleRepository modules,
-            EnrollmentRepository enrollments, ExamRepository exams, ExamAttemptRepository attempts,
-            QuestionRepository questions, SubmissionRepository submissions, UserRepository users,
+            EnrollmentRepository enrollments, ExamRepository exams, ExamAttemptRepository attempts, ExamSessionRepository sessions,
+            QuestionRepository questions, UserRepository users,
             LearningService learning, NotificationService notifications, StorageService storage, Mapper mapper) {
         this.courses = courses;
         this.categories = categories;
@@ -86,8 +88,8 @@ public class TrainerService {
         this.enrollments = enrollments;
         this.exams = exams;
         this.attempts = attempts;
+        this.sessions = sessions;
         this.questions = questions;
-        this.submissions = submissions;
         this.users = users;
         this.learning = learning;
         this.notifications = notifications;
@@ -117,7 +119,7 @@ public class TrainerService {
 
     private TrainerCourseDto row(Course c) {
         return new TrainerCourseDto(c.getId(), c.getSlug(), c.getTitle(), Codes.of(c.getStatus()), c.getCategory().getSlug(),
-                c.getCategory().getIcon(), c.getCategory().getColor(), c.getModules().size(), c.lessonCount(), mapper.learnerCount(c), c.getImageUrl(), c.getReviewComment(),
+                c.getCategory().getIcon(), c.getCategory().getColor(), c.getModules().size(), c.lessonCount(), mapper.learnerCount(c), c.getImageUrl(),
                 c.getUpdatedAt() == null ? c.getCreatedAt() : c.getUpdatedAt());
     }
 
@@ -132,16 +134,14 @@ public class TrainerService {
         List<ExamAttempt> done = attempts.findByExam_CourseIn(mine).stream()
                 .filter(a -> a.getStatus() == AttemptStatus.SOUMIS).toList();
         long passed = done.stream().filter(a -> Boolean.TRUE.equals(a.getPassed())).count();
-        List<Submission> toGrade = submissions.findByCourseInOrderBySubmittedAtDesc(mine).stream()
-                .filter(s -> s.getStatus() == SubmissionStatus.A_CORRIGER).toList();
 
         Map<String, Object> stats = new LinkedHashMap<>();
         stats.put("learners", active.stream().map(e -> e.getUser().getId()).distinct().count());
         stats.put("newThisMonth", active.stream().filter(e -> e.getEnrolledAt().isAfter(monthAgo)).count());
         stats.put("published", mine.stream().filter(c -> c.getStatus() == CourseStatus.PUBLIEE).count());
-        stats.put("inValidation", mine.stream().filter(c -> c.getStatus() == CourseStatus.EN_VALIDATION).count());
+        stats.put("drafts", mine.stream().filter(c -> c.getStatus() == CourseStatus.BROUILLON).count());
         stats.put("successRate", done.isEmpty() ? null : Math.round(passed * 100f / done.size()));
-        stats.put("toGrade", toGrade.size());
+        stats.put("graded", done.size()); // examens corrigés automatiquement
 
         Map<String, FraudAlert> alerts = new LinkedHashMap<>();
         done.stream().filter(a -> a.getTabSwitches() > 0)
@@ -151,7 +151,11 @@ public class TrainerService {
                         (x, y) -> new FraudAlert(x.learnerId(), x.name(), x.course(), x.tabSwitches() + y.tabSwitches())));
 
         return new TrainerDashboard(stats, mine.stream().map(this::row).toList(),
-                alerts.values().stream().limit(8).toList(), toGrade.stream().limit(5).map(mapper::submission).toList());
+                alerts.values().stream().limit(8).toList(),
+                done.stream().sorted((a, b) -> b.getSubmittedAt().compareTo(a.getSubmittedAt())).limit(6)
+                        .map(a -> new ExamResultRow(a.getUser().getId(), a.getUser().fullName(), a.getExam().getCourse().getTitle(),
+                                a.getScore() == null ? 0 : a.getScore(), Boolean.TRUE.equals(a.getPassed()), a.getSubmittedAt()))
+                        .toList());
     }
 
     @Transactional(readOnly = true)
@@ -169,12 +173,12 @@ public class TrainerService {
     private CourseEdit edit(Course c) {
         List<ModuleEdit> ms = c.getModules().stream().map(m -> new ModuleEdit(m.getId(), m.getTitle(),
                 m.getLessons().stream().map(l -> new LessonEdit(l.getId(), l.getTitle(), Codes.of(l.getType()),
-                        l.getDuration(), l.getContent(), l.getVideoUrl(), l.getFileUrl(), l.isPractical())).toList()))
+                        l.getDuration(), l.getContent(), l.getVideoUrl(), l.getFileUrl())).toList()))
                 .toList();
         return new CourseEdit(c.getId(), c.getSlug(), c.getTitle(), c.getShortDescription(), c.getDescription(),
                 c.getCategory().getSlug(), c.getLevel().label(), c.getHours(), c.getWeeks(), c.getPrerequisites(),
                 c.getObjectives(), c.getSkills(), mapper.certTypeCodes(c), Codes.of(c.getAccess()), c.getImageUrl(),
-                Codes.of(c.getStatus()), ms, c.getReviewComment());
+                c.getSupportUrl(), Codes.of(c.getStatus()), ms);
     }
 
     private static List<String> clean(List<String> values) {
@@ -201,7 +205,6 @@ public class TrainerService {
         Course c = owned(user, id);
         int before = c.lessonCount();
         apply(c, r);
-        if (c.getStatus() == CourseStatus.REFUSEE) c.setStatus(CourseStatus.BROUILLON);
         c.setUpdatedAt(Instant.now());
         courses.saveAndFlush(c);
         int added = c.lessonCount() - before;
@@ -231,6 +234,7 @@ public class TrainerService {
         c.setCertTypes(certs);
         c.setAccess(r.access() == null ? AccessMode.LIBRE : Codes.require(AccessMode.class, r.access(), "accès"));
         c.setImageUrl(r.image());
+        c.setSupportUrl(r.support() == null || r.support().isBlank() ? null : r.support());
         if (r.modules() != null) syncModules(c, r.modules());
     }
 
@@ -260,7 +264,6 @@ public class TrainerService {
                 l.setContent(le.content());
                 l.setVideoUrl(le.videoUrl());
                 l.setFileUrl(le.fileUrl());
-                l.setPractical(le.practical());
                 orderedLessons.add(l);
             }
             m.getLessons().clear();
@@ -271,24 +274,27 @@ public class TrainerService {
         c.getModules().addAll(ordered);
     }
 
+    /** Publication directe : la formation devient visible dans le catalogue immédiatement, sans validation préalable. */
     @Transactional
-    public CourseEdit submit(User user, Long id) {
+    public CourseEdit publish(User user, Long id) {
         Course c = owned(user, id);
         if (c.getStatus() == CourseStatus.PUBLIEE) throw ApiException.badRequest("Cette formation est déjà publiée.");
-        if (c.getStatus() == CourseStatus.EN_VALIDATION) throw ApiException.badRequest("Cette formation est déjà en cours de validation.");
+        if (c.getStatus() == CourseStatus.ARCHIVEE) {
+            throw ApiException.forbidden("Cette formation a été archivée par l'administration : contactez l'Académie pour la republier.");
+        }
         if (c.getModules().isEmpty() || c.lessonCount() == 0) throw ApiException.badRequest("Ajoutez au moins un module et une leçon.");
         if (c.delivers(CertType.COMPETENCE)) {
             Exam exam = exams.findByCourse(c).orElse(null);
             if (exam == null || exam.getQuestions().isEmpty()) {
-                throw ApiException.badRequest("Configurez l'examen final et ses questions avant de soumettre.");
+                throw ApiException.badRequest("Configurez l'examen final et ses questions avant de publier.");
             }
         }
-        c.setStatus(CourseStatus.EN_VALIDATION);
-        c.setSubmittedAt(Instant.now());
-        c.setReviewComment(null);
+        c.setStatus(CourseStatus.PUBLIEE);
+        if (c.getPublishedAt() == null) c.setPublishedAt(Instant.now());
+        // Information de l'administration (aucune action requise : elle peut archiver la formation si besoin)
         notifications.notifyAll(users.findByRoleAndStatusOrderByCreatedAtAsc(Role.ADMIN, AccountStatus.ACTIF),
-                NotificationType.COURSE, "Formation à valider",
-                c.getTrainer().fullName() + " a soumis « " + c.getTitle() + " » pour publication.", "/admin/validations");
+                NotificationType.COURSE, "Nouvelle formation publiée",
+                c.getTrainer().fullName() + " a publié « " + c.getTitle() + " » dans le catalogue.", "/admin/formations");
         return edit(c);
     }
 
@@ -298,22 +304,19 @@ public class TrainerService {
     public ExamSettings examSettings(User user, Long courseId) {
         Course c = owned(user, courseId);
         return exams.findByCourse(c).map(TrainerService::settings)
-                .orElse(new ExamSettings(null, "Examen final – " + c.getTitle(), 20, 10, true, 60, 2, null, null, true,
+                .orElse(new ExamSettings(null, "Examen final – " + c.getTitle(), 20, 10, true, 60, true,
                         false, false, List.of()));
     }
 
     private static ExamSettings settings(Exam e) {
         return new ExamSettings(e.getId(), e.getTitle(), e.getDurationMin(), e.getQuestionCount(), e.isRandomize(),
-                e.getPassMark(), e.getAttemptsAllowed(), e.getOpensAt(), e.getClosesAt(), e.isShowCorrection(),
+                e.getPassMark(), e.isShowCorrection(),
                 e.isRoomOnly(), e.isRequiresAdminValidation(), e.getQuestions().stream().map(Question::getId).toList());
     }
 
     @Transactional
     public ExamSettings saveExam(User user, Long courseId, ExamSettings s) {
         Course c = owned(user, courseId);
-        if (s.opensAt() != null && s.closesAt() != null && s.closesAt().isBefore(s.opensAt())) {
-            throw ApiException.badRequest("La date de fermeture doit suivre la date d'ouverture.");
-        }
         Exam e = exams.findByCourse(c).orElseGet(() -> {
             Exam created = new Exam();
             created.setCourse(c);
@@ -327,9 +330,6 @@ public class TrainerService {
         e.setQuestionCount(s.questionCount());
         e.setRandomize(s.randomize());
         e.setPassMark(s.passMark());
-        e.setAttemptsAllowed(s.attemptsAllowed());
-        e.setOpensAt(s.opensAt());
-        e.setClosesAt(s.closesAt());
         e.setShowCorrection(s.showCorrection());
         e.setRoomOnly(s.roomOnly());
         e.setRequiresAdminValidation(s.requiresAdminValidation());
@@ -401,11 +401,6 @@ public class TrainerService {
                 q.setCorrectAnswers(List.of());
                 q.setAcceptedAnswers(accepted);
             }
-            case PRATIQUE -> {
-                q.setOptions(List.of());
-                q.setCorrectAnswers(List.of());
-                q.setAcceptedAnswers(clean(r.accepted()));
-            }
         }
         if (module != null && type != QuestionType.UNIQUE && type != QuestionType.VRAIFAUX) {
             throw ApiException.badRequest("Les quiz de module acceptent les QCM à réponse unique et les vrai / faux.");
@@ -437,8 +432,8 @@ public class TrainerService {
                     .toList();
             Integer best = mineAttempts.stream().filter(a -> a.getScore() != null).map(ExamAttempt::getScore)
                     .max(Integer::compare).orElse(null);
-            result.add(new TrainerLearnerDto(u.getId(), u.fullName(), Codes.of(u.getProfileType()), u.getCenterName(),
-                    Texts.display(u.getPhone()), mapper.courseRef(e.getCourse()), learning.progressOf(u, e.getCourse()),
+            result.add(new TrainerLearnerDto(u.getId(), e.getId(), u.fullName(), Codes.of(u.getProfileType()), u.getCenterName(),
+                    Texts.display(u.getPhone()), mapper.courseRef(e.getCourse()), Codes.of(e.getMode()), learning.progressOf(u, e.getCourse()),
                     best, (int) mineAttempts.stream().filter(a -> a.getStatus() == AttemptStatus.SOUMIS).count(),
                     mineAttempts.stream().mapToInt(ExamAttempt::getTabSwitches).sum(),
                     Codes.of(e.getStatus() == EnrollmentStatus.ACTIF ? u.getStatus() : AccountStatus.EN_ATTENTE),
@@ -447,32 +442,71 @@ public class TrainerService {
         return result;
     }
 
+    // ------------------------------------------------------------ Modalité (en salle / en ligne)
+
+    /** Le formateur de la formation (ou l'administrateur) change la modalité d'un apprenant. */
+    @Transactional
+    public String setMode(User user, Long enrollmentId, String mode) {
+        Enrollment e = enrollments.findById(enrollmentId).orElseThrow(() -> ApiException.notFound("Inscription introuvable."));
+        owned(user, e.getCourse().getId());
+        LearningMode m = Codes.require(LearningMode.class, mode, "modalité");
+        if (m != e.getMode()) {
+            e.setMode(m);
+            notifications.notify(e.getUser(), NotificationType.COURSE,
+                    m == LearningMode.SALLE ? "Formation suivie en salle" : "Formation suivie en ligne",
+                    m == LearningMode.SALLE
+                            ? "Vous suivez « " + e.getCourse().getTitle() + " » à l'Académie : l'examen final aura lieu lors d'une session programmée par votre formateur."
+                            : "Vous suivez « " + e.getCourse().getTitle() + " » en ligne : l'examen final s'ouvre dès que vous avez terminé tous les modules.",
+                    "/apprendre/" + e.getCourse().getSlug());
+        }
+        return Codes.of(m);
+    }
+
+    // ------------------------------------------------------------ Sessions d'examen en salle
+
+    private Exam examOf(User user, Long courseId) {
+        Course c = owned(user, courseId);
+        return exams.findByCourse(c).orElseThrow(() -> ApiException.badRequest("Configurez d'abord l'examen final (questions et réglages)."));
+    }
+
     @Transactional(readOnly = true)
-    public List<SubmissionDto> submissions(User user) {
-        return submissions.findByCourseInOrderBySubmittedAtDesc(myCourses(user)).stream().map(mapper::submission).toList();
+    public List<SessionDto> sessions(User user, Long courseId) {
+        Course c = owned(user, courseId);
+        return exams.findByCourse(c).map(e -> sessions.findByExamOrderByStartsAtAsc(e).stream().map(mapper::session).toList())
+                .orElse(List.of());
     }
 
     @Transactional
-    public SubmissionDto grade(User user, Long id, GradeRequest r) {
-        Submission s = submissions.findById(id).orElseThrow(() -> ApiException.notFound("Dépôt introuvable."));
-        owned(user, s.getCourse().getId());
-        s.setGrade(r.grade());
-        s.setComment(r.comment());
-        s.setStatus(SubmissionStatus.CORRIGE);
-        s.setGradedAt(Instant.now());
-        notifications.notify(s.getUser(), NotificationType.GRADE, "Exercice corrigé",
-                "« " + s.getTask() + " » : " + r.grade() + "/20.", "/apprendre/" + s.getCourse().getSlug()
-                        + (s.getLesson() == null ? "" : "/" + s.getLesson().getId()));
-        return mapper.submission(s);
+    public SessionDto createSession(User user, Long courseId, SessionRequest r) {
+        Exam exam = examOf(user, courseId);
+        if (exam.getQuestions().isEmpty()) throw ApiException.badRequest("Ajoutez des questions à l'examen avant de programmer une session.");
+        Instant start = r.date().atTime(r.start()).atZone(Mapper.ZONE).toInstant();
+        Instant end = r.date().atTime(r.end()).atZone(Mapper.ZONE).toInstant();
+        if (!end.isAfter(start)) throw ApiException.badRequest("L'heure de fin doit suivre l'heure de début.");
+        if (Duration.between(start, end).toMinutes() < exam.getDurationMin()) {
+            throw ApiException.badRequest("Le créneau doit durer au moins la durée de l'examen (" + exam.getDurationMin() + " min).");
+        }
+        if (end.isBefore(Instant.now())) throw ApiException.badRequest("Ce créneau est déjà passé.");
+        ExamSession s = new ExamSession();
+        s.setExam(exam);
+        s.setStartsAt(start);
+        s.setEndsAt(end);
+        sessions.save(s);
+        // Les apprenants en salle sont prévenus de la date de l'examen
+        List<User> room = enrollments.findByCourseIn(List.of(exam.getCourse())).stream()
+                .filter(e -> e.getStatus() == EnrollmentStatus.ACTIF && e.getMode() == LearningMode.SALLE)
+                .map(Enrollment::getUser).toList();
+        notifications.notifyAll(room, NotificationType.EXAM, "Examen final programmé",
+                "Examen « " + exam.getCourse().getTitle() + " » le " + Mapper.when(start) + " (jusqu'à "
+                        + Mapper.hour(end) + "). Une seule tentative : soyez à l'heure.", "/apprenant/examens");
+        return mapper.session(s);
     }
 
-    /** Fichier d'un dépôt : accessible à l'apprenant, au formateur de la formation et à l'administrateur. */
-    @Transactional(readOnly = true)
-    public Map.Entry<String, Resource> submissionFile(User user, Long id) {
-        Submission s = submissions.findById(id).orElseThrow(() -> ApiException.notFound("Dépôt introuvable."));
-        boolean allowed = user.getRole() == Role.ADMIN || s.getUser().getId().equals(user.getId())
-                || s.getCourse().getTrainer().getId().equals(user.getId());
-        if (!allowed) throw ApiException.forbidden("Vous n'avez pas accès à ce fichier.");
-        return Map.entry(s.getFileName(), storage.loadPrivate(s.getStoredFile()));
+    @Transactional
+    public void deleteSession(User user, Long sessionId) {
+        ExamSession s = sessions.findById(sessionId).orElseThrow(() -> ApiException.notFound("Session introuvable."));
+        owned(user, s.getExam().getCourse().getId());
+        if (!s.getStartsAt().isAfter(Instant.now())) throw ApiException.badRequest("Une session commencée ou passée ne peut pas être supprimée.");
+        sessions.delete(s);
     }
 }

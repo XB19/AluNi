@@ -51,7 +51,7 @@ export default function MyCourses() {
                 </div>
               ) : (
                 <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                  {list.map((e) => <CourseCard key={e.id} course={e.course} progress={e.progress} to={`/apprendre/${e.course.slug}`} />)}
+                  {list.map((e) => <CourseCard key={e.id} course={e.course} progress={e.mode === 'salle' ? undefined : e.progress} to={`/apprendre/${e.course.slug}`} />)}
                 </div>
               )}
             </>

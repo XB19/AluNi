@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router'
 import { X } from 'lucide-react'
 
@@ -148,26 +149,39 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose])
+  // Page figée derrière la fenêtre
+  useEffect(() => {
+    if (!open) return
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previous
+    }
+  }, [open])
   if (!open) return null
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" onClick={onClose}>
+  // Rendue dans <body> : aucun conteneur de la page (animation, transformation, z-index) ne peut la recouvrir ni la couper
+  return createPortal(
+    <div className="animate-fade-in fixed inset-0 z-[70] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
-        className={cx('max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white shadow-xl sm:rounded-2xl', size === 'lg' ? 'sm:max-w-3xl' : 'sm:max-w-lg')}
+        className={cx('flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl', size === 'lg' ? 'sm:max-w-3xl' : 'sm:max-w-lg')}
       >
-        <div className="sticky top-0 flex items-center justify-between border-b border-gray-100 bg-white px-5 py-4">
-          <h3 className="text-lg font-bold">{title}</h3>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100" aria-label="Fermer">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
+          <h3 className="min-w-0 truncate text-lg font-bold">{title}</h3>
+          <button onClick={onClose} className="shrink-0 rounded-lg p-1.5 text-gray-500 hover:bg-gray-100" aria-label="Fermer">
             <X className="size-5" />
           </button>
         </div>
-        <div className="p-5">{children}</div>
-        {footer && <div className="flex justify-end gap-3 border-t border-gray-100 px-5 py-4">{footer}</div>}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">{children}</div>
+        {footer && (
+          <div className="flex shrink-0 flex-wrap justify-end gap-3 border-t border-gray-100 bg-white px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">{footer}</div>
+        )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -235,10 +249,11 @@ export function Toast({ message, onDone }) {
     return () => clearTimeout(t)
   }, [message])
   if (!message) return null
-  return (
-    <div className="fixed bottom-24 left-1/2 z-[60] -translate-x-1/2 rounded-xl bg-ink px-5 py-3 text-sm font-medium text-white shadow-lg lg:bottom-8" role="status">
+  return createPortal(
+    <div className="animate-fade-up fixed bottom-24 left-1/2 z-[80] w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-xl bg-ink px-5 py-3 text-center text-sm font-medium text-white shadow-lg lg:bottom-8" role="status">
       {message}
-    </div>
+    </div>,
+    document.body,
   )
 }
 

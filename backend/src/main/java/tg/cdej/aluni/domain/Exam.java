@@ -1,6 +1,5 @@
 package tg.cdej.aluni.domain;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -50,12 +49,6 @@ public class Exam {
 
     private int passMark = 60;
 
-    private int attemptsAllowed = 2;
-
-    private LocalDate opensAt;
-
-    private LocalDate closesAt;
-
     private boolean showCorrection = true;
 
     /** Examen accessible uniquement depuis les postes de la salle de l'Académie. */
@@ -69,8 +62,4 @@ public class Exam {
             joinColumns = @JoinColumn(name = "exam_id"),
             inverseJoinColumns = @JoinColumn(name = "question_id"))
     private List<Question> questions = new ArrayList<>();
-
-    public boolean isOpen(LocalDate today) {
-        return (opensAt == null || !today.isBefore(opensAt)) && (closesAt == null || !today.isAfter(closesAt));
-    }
 }

@@ -6,6 +6,5 @@ public enum NotificationType {
     CERTIFICATE,
     ENROLLMENT,
     ACCOUNT,
-    GRADE,
     COURSE
 }

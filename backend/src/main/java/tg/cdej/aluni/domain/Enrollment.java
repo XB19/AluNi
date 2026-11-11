@@ -14,6 +14,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
@@ -49,4 +50,14 @@ public class Enrollment {
     private Instant decidedAt;
 
     private Instant completedAt;
+
+    /** En salle (examen sur session, une tentative) ou en ligne (examen libre, tentatives illimitées). */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private LearningMode mode;
+
+    @PrePersist
+    void defaultMode() {
+        if (mode == null) mode = LearningMode.defaultFor(user);
+    }
 }

@@ -93,19 +93,19 @@ Les tests d'intégration utilisent une base dédiée `aluni_test`, à créer une
 2. `cd backend && ./mvnw -DskipTests package` → lancer `java -jar target/aluni-backend-0.1.0.jar` (service systemd), avec les variables d'environnement du fichier `.env.example`.
 3. Nginx : proxy de `/api/` et `/files/` vers `http://127.0.0.1:8080`, HTTPS avec Let's Encrypt.
 4. Renseigner `FRONTEND_URL` (utilisé dans les QR codes des certificats) et `CORS_ORIGINS` avec le nom de domaine.
-5. Sauvegardes : la base PostgreSQL (`pg_dump`) **et** le dossier `STORAGE_DIR` (supports de cours, exercices déposés).
+5. Sauvegardes : la base PostgreSQL (`pg_dump`) **et** le dossier `STORAGE_DIR` (supports de cours, images).
 
 ## Fonctionnalités principales
 
 - **Comptes** : inscription par profil (CDEJ interne, autre CDEJ, particulier, formateur soumis à validation), connexion par téléphone ou e-mail, récupération par code (SMS / e-mail), import Excel de comptes.
-- **Formations** : modules et leçons (texte, vidéo, PDF, image), déblocage progressif, quiz d'entraînement, exercices pratiques corrigés par le formateur.
+- **Formations** : modules et leçons (texte, vidéo, PDF, image), déblocage progressif, quiz d'entraînement corrigés automatiquement. Le formateur publie lui-même sa formation : elle est visible immédiatement dans le catalogue (l'administration peut l'archiver si besoin). Le formateur fournit les questions **et leurs réponses** (saisie ou import Word) : il n'a aucune copie à corriger.
 - **Import de documents** (espace formateur) :
   - *Cours* : un fichier Word (.docx/.doc), PowerPoint (.pptx/.ppt), PDF ou texte est découpé automatiquement en modules et leçons (titres « Titre 1 / Titre 2 » ou lignes « Module 1 : … / Leçon 1.1 : … », diapositives de section, taille des caractères pour les PDF). Texte, listes, tableaux, images et notes du présentateur sont repris ; le document original peut être joint.
   - *Questions* : un fichier Word, PDF ou texte avec des questions numérotées et des choix a), b), c)… ; bonne réponse en gras, suivie de `*` ou indiquée par « Réponse : b ». Vrai/faux, choix multiples, réponse courte et exercices pratiques sont reconnus. Aperçu avec les erreurs ligne par ligne avant création.
   - Des modèles Word sont téléchargeables depuis les fenêtres d'import.
-- **Examens** : chronomètre côté serveur, tirage et mélange des questions, sauvegarde automatique (reprise après coupure), une seule session active, détection des changements d'onglet, mode « examen en salle » (adresses IP de la salle), correction automatique.
+- **Examens** : chronomètre côté serveur, tirage et mélange des questions, sauvegarde automatique (reprise après coupure), une seule session active, détection des changements d'onglet, mode « examen en salle » (adresses IP de la salle), correction automatique. Deux modalités par inscription : **en salle** (apprenants du CDEJ : support de cours PDF, examen lors d'une session programmée par le formateur avec un créneau horaire, une seule tentative) et **en ligne** (autres CDEJ et particuliers : modules suivis à son rythme, examen ouvert à tout moment une fois les modules terminés, tentatives illimitées jusqu'à la réussite). Le formateur peut changer la modalité d'un apprenant.
 - **Certificats** : attestation de suivi et certificat de compétence, numéro unique, signature numérique HMAC, QR code, PDF officiel, vérification publique, révocation, modèles personnalisables.
-- **Administration** : validations, utilisateurs, catégories, contenus du site vitrine, messages de contact, statistiques et rapports exportables (Excel / PDF).
+- **Administration** : validations (comptes formateurs, inscriptions, certificats), archivage des formations, utilisateurs, catégories, contenus du site vitrine, messages de contact, statistiques et rapports exportables (Excel / PDF).
 
 ## Envoi des SMS et e-mails
 

@@ -20,14 +20,11 @@ public final class AdminDtos {
     public record PendingTrainer(Long id, String name, String email, String phone, String speciality, Instant date) {
     }
 
-    public record PendingCourse(Long id, String slug, String title, String trainer, String category, int modules,
-            Instant date) {
-    }
 
     public record PendingEnrollment(Long id, String name, String profile, CourseRef course, Instant date) {
     }
 
-    public record Validations(List<PendingTrainer> trainers, List<PendingCourse> courses,
+    public record Validations(List<PendingTrainer> trainers,
             List<PendingEnrollment> enrollments, List<CertificateDto> certificates) {
     }
 
@@ -35,7 +32,7 @@ public final class AdminDtos {
     }
 
     public record AdminDashboard(Map<String, Object> stats, List<LabelValue> monthly, List<LabelValue> profiles,
-            List<PendingTrainer> pendingTrainers, List<PendingCourse> pendingCourses,
+            List<PendingTrainer> pendingTrainers,
             List<CertificateDto> latestCertificates) {
     }
 

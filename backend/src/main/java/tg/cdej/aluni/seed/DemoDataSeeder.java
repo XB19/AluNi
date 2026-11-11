@@ -1,11 +1,5 @@
 package tg.cdej.aluni.seed;
 
-import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -15,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import javax.imageio.ImageIO;
 
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
@@ -41,6 +34,7 @@ import tg.cdej.aluni.domain.CourseStatus;
 import tg.cdej.aluni.domain.Enrollment;
 import tg.cdej.aluni.domain.EnrollmentStatus;
 import tg.cdej.aluni.domain.Exam;
+import tg.cdej.aluni.domain.ExamSession;
 import tg.cdej.aluni.domain.ExamAttempt;
 import tg.cdej.aluni.domain.FaqItem;
 import tg.cdej.aluni.domain.Lesson;
@@ -56,14 +50,13 @@ import tg.cdej.aluni.domain.Question;
 import tg.cdej.aluni.domain.QuestionType;
 import tg.cdej.aluni.domain.QuizResult;
 import tg.cdej.aluni.domain.Role;
-import tg.cdej.aluni.domain.Submission;
-import tg.cdej.aluni.domain.SubmissionStatus;
 import tg.cdej.aluni.domain.User;
 import tg.cdej.aluni.repository.CategoryRepository;
 import tg.cdej.aluni.repository.CertificateRepository;
 import tg.cdej.aluni.repository.CourseRepository;
 import tg.cdej.aluni.repository.EnrollmentRepository;
 import tg.cdej.aluni.repository.ExamAttemptRepository;
+import tg.cdej.aluni.repository.ExamSessionRepository;
 import tg.cdej.aluni.repository.ExamRepository;
 import tg.cdej.aluni.repository.FaqItemRepository;
 import tg.cdej.aluni.repository.LessonProgressRepository;
@@ -72,10 +65,9 @@ import tg.cdej.aluni.repository.NotificationRepository;
 import tg.cdej.aluni.repository.PartnerRepository;
 import tg.cdej.aluni.repository.QuestionRepository;
 import tg.cdej.aluni.repository.QuizResultRepository;
-import tg.cdej.aluni.repository.SubmissionRepository;
 import tg.cdej.aluni.repository.UserRepository;
 import tg.cdej.aluni.service.CertificateService;
-import tg.cdej.aluni.service.StorageService;
+import tg.cdej.aluni.service.Mapper;
 
 /**
  * Données de démonstration chargées au premier démarrage (base vide).
@@ -99,14 +91,13 @@ public class DemoDataSeeder implements ApplicationRunner {
     private final LessonProgressRepository progress;
     private final QuizResultRepository quizResults;
     private final ExamAttemptRepository attempts;
+    private final ExamSessionRepository examSessions;
     private final CertificateRepository certificates;
     private final CertificateService certificateService;
     private final NotificationRepository notifications;
-    private final SubmissionRepository submissions;
     private final NewsRepository news;
     private final PartnerRepository partners;
     private final FaqItemRepository faq;
-    private final StorageService storage;
 
     private final Random random = new Random(2026);
     private String passwordHash;
@@ -114,10 +105,9 @@ public class DemoDataSeeder implements ApplicationRunner {
     public DemoDataSeeder(AppProperties props, TransactionTemplate tx, PasswordEncoder encoder, UserRepository users,
             CategoryRepository categories, CourseRepository courses, QuestionRepository questions,
             ExamRepository exams, EnrollmentRepository enrollments, LessonProgressRepository progress,
-            QuizResultRepository quizResults, ExamAttemptRepository attempts, CertificateRepository certificates,
+            QuizResultRepository quizResults, ExamAttemptRepository attempts, ExamSessionRepository examSessions, CertificateRepository certificates,
             CertificateService certificateService, NotificationRepository notifications,
-            SubmissionRepository submissions, NewsRepository news, PartnerRepository partners, FaqItemRepository faq,
-            StorageService storage) {
+            NewsRepository news, PartnerRepository partners, FaqItemRepository faq) {
         this.props = props;
         this.tx = tx;
         this.encoder = encoder;
@@ -130,14 +120,13 @@ public class DemoDataSeeder implements ApplicationRunner {
         this.progress = progress;
         this.quizResults = quizResults;
         this.attempts = attempts;
+        this.examSessions = examSessions;
         this.certificates = certificates;
         this.certificateService = certificateService;
         this.notifications = notifications;
-        this.submissions = submissions;
         this.news = news;
         this.partners = partners;
         this.faq = faq;
-        this.storage = storage;
     }
 
     @Override
@@ -179,19 +168,19 @@ public class DemoDataSeeder implements ApplicationRunner {
         return u;
     }
 
-    private record L(String title, LessonType type, String duration, boolean practical) {
+    private record L(String title, LessonType type, String duration) {
     }
 
     private static L l(String title) {
-        return new L(title, LessonType.TEXTE, "10 min", false);
+        return new L(title, LessonType.TEXTE, "10 min");
     }
 
     private static L l(String title, LessonType type, String duration) {
-        return new L(title, type, duration, false);
+        return new L(title, type, duration);
     }
 
     private static L tp(String title, String duration) {
-        return new L(title, LessonType.TEXTE, duration, true);
+        return new L(title, LessonType.TEXTE, duration);
     }
 
     private record M(String title, List<L> lessons) {
@@ -202,10 +191,6 @@ public class DemoDataSeeder implements ApplicationRunner {
     }
 
     private static String content(String module, L lesson, String trainer) {
-        String practical = lesson.practical()
-                ? "<h3>À rendre</h3><p>Réalisez l'exercice puis déposez votre fichier ci-dessous (photo, capture d'écran ou document). "
-                        + "Votre formateur le corrigera et vous recevrez une note sur 20.</p>"
-                : "";
         return "<p>Dans cette leçon du module <strong>« " + module + " »</strong>, nous allons découvrir pas à pas : <strong>"
                 + lesson.title().toLowerCase() + "</strong>. Prenez votre temps, et n'hésitez pas à refaire les manipulations "
                 + "sur votre ordinateur ou votre téléphone.</p>"
@@ -215,8 +200,7 @@ public class DemoDataSeeder implements ApplicationRunner {
                 + "<h3>Exercice pratique</h3><ol><li>Relisez attentivement la leçon (ou regardez la vidéo une seconde fois).</li>"
                 + "<li>Reproduisez la manipulation présentée, étape par étape.</li>"
                 + "<li>Notez vos questions pour les poser à votre formateur, " + trainer + ", lors de la prochaine séance en salle.</li></ol>"
-                + practical
-                + "<p>Quand vous êtes prêt, cliquez sur <strong>« Marquer comme terminée »</strong> pour enregistrer votre progression.</p>";
+                + "<p>Quand vous êtes prêt, cliquez sur <strong>« Terminer et continuer »</strong> pour enregistrer votre progression.</p>";
     }
 
     private Course course(String slug, String title, Category cat, Level level, int hours, int weeks, User trainer,
@@ -243,7 +227,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         c.setSkills(new ArrayList<>(skills));
         c.setStatus(status);
         c.setCreatedAt(at(created));
-        if (status == CourseStatus.EN_VALIDATION) c.setSubmittedAt(Instant.now().minusSeconds(86400L * 3));
+        if (status == CourseStatus.PUBLIEE) c.setPublishedAt(at(created));
         for (int i = 0; i < modules.size(); i++) {
             M md = modules.get(i);
             CourseModule cm = new CourseModule();
@@ -258,7 +242,6 @@ public class DemoDataSeeder implements ApplicationRunner {
                 ls.setTitle(ld.title());
                 ls.setType(ld.type());
                 ls.setDuration(ld.duration());
-                ls.setPractical(ld.practical());
                 ls.setContent(content(md.title(), ld, trainer.fullName()));
                 if (ld.type() == LessonType.VIDEO) ls.setVideoUrl("https://www.youtube.com/embed/WuzpUUxvnBk");
                 cm.getLessons().add(ls);
@@ -297,9 +280,6 @@ public class DemoDataSeeder implements ApplicationRunner {
         e.setDurationMin(duration);
         e.setQuestionCount(count);
         e.setPassMark(passMark);
-        e.setAttemptsAllowed(2);
-        e.setOpensAt(LocalDate.now().minusDays(10));
-        e.setClosesAt(LocalDate.now().plusDays(60));
         e.getQuestions().addAll(qs);
         return exams.save(e);
     }
@@ -370,68 +350,6 @@ public class DemoDataSeeder implements ApplicationRunner {
         n.setRead(read);
         n.setCreatedAt(at(date));
         notifications.save(n);
-    }
-
-    private String demoFile(String name, String label, Color color) {
-        try {
-            byte[] bytes;
-            String ext = StorageService.extension(name);
-            if (ext.equals("xlsx")) {
-                try (XSSFWorkbook wb = new XSSFWorkbook()) {
-                    var sheet = wb.createSheet("Calendrier");
-                    String[] days = { "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi" };
-                    for (int i = 0; i < days.length; i++) {
-                        var row = sheet.createRow(i);
-                        row.createCell(0).setCellValue(days[i]);
-                        row.createCell(1).setCellValue("Publication produit " + (i + 1));
-                    }
-                    ByteArrayOutputStream out = new ByteArrayOutputStream();
-                    wb.write(out);
-                    bytes = out.toByteArray();
-                }
-            } else {
-                BufferedImage img = new BufferedImage(640, 400, BufferedImage.TYPE_INT_RGB);
-                Graphics2D g = img.createGraphics();
-                g.setColor(color);
-                g.fillRect(0, 0, 640, 400);
-                g.setColor(Color.WHITE);
-                g.setFont(g.getFont().deriveFont(28f));
-                g.drawString(label, 40, 210);
-                g.dispose();
-                ByteArrayOutputStream out = new ByteArrayOutputStream();
-                ImageIO.write(img, ext.equals("jpg") ? "jpg" : "png", out);
-                bytes = out.toByteArray();
-            }
-            String relative = "submissions/demo-" + name;
-            Path target = storage.publicRoot().getParent().resolve("private").resolve(relative);
-            Files.createDirectories(target.getParent());
-            Files.write(target, bytes);
-            return relative;
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    private void submission(User u, Course c, Lesson lesson, String fileName, Color color, String date, Integer grade) {
-        Submission s = new Submission();
-        s.setUser(u);
-        s.setCourse(c);
-        s.setLesson(lesson);
-        s.setTask(lesson.getTitle());
-        s.setFileName(fileName);
-        s.setStoredFile(demoFile(fileName, lesson.getTitle(), color));
-        s.setSubmittedAt(at(date));
-        s.setStatus(grade == null ? SubmissionStatus.A_CORRIGER : SubmissionStatus.CORRIGE);
-        s.setGrade(grade);
-        if (grade != null) {
-            s.setComment("Très bon travail, dossiers bien organisés !");
-            s.setGradedAt(at(date).plusSeconds(86400));
-        }
-        submissions.save(s);
-    }
-
-    private Lesson lessonByTitle(Course c, String title) {
-        return lessons(c).stream().filter(x -> x.getTitle().equals(title)).findFirst().orElseThrow();
     }
 
     // ------------------------------------------------------------ Jeu de données
@@ -603,8 +521,8 @@ public class DemoDataSeeder implements ApplicationRunner {
                 List.of(m("Les bases", l("L'interface de PowerPoint", LessonType.VIDEO, "10 min"), l("Créer ses premières diapositives")),
                         m("Une présentation réussie", l("Règles de mise en page"), l("Animations et transitions")),
                         m("Présenter", l("Préparer son oral"), tp("Projet : mon exposé", "30 min"))),
-                CourseStatus.EN_VALIDATION, "2026-10-10");
-        Course arduino = course("initiation-arduino", "Initiation à Arduino", cat.get("programmation"), Level.INTERMEDIAIRE, 24, 5, kwami,
+                CourseStatus.BROUILLON, "2026-10-10");
+        course("initiation-arduino", "Initiation à Arduino", cat.get("programmation"), Level.INTERMEDIAIRE, 24, 5, kwami,
                 comp, AccessMode.VALIDATION, 0, false, true,
                 "Programmez des montages électroniques simples : LED, capteurs et moteurs.",
                 "Découvrez la carte Arduino et réalisez vos premiers montages électroniques programmés.",
@@ -614,8 +532,7 @@ public class DemoDataSeeder implements ApplicationRunner {
                         m("Premiers montages", l("Faire clignoter une LED"), l("Lire un capteur")),
                         m("Projets", l("Feu tricolore"), l("Station météo")),
                         m("Moteurs", l("Servomoteur")), m("Projet final", tp("Mon projet Arduino", "60 min"))),
-                CourseStatus.EN_VALIDATION, "2026-10-12");
-        arduino.setSubmittedAt(Instant.now().minusSeconds(86400));
+                CourseStatus.BROUILLON, "2026-10-12");
 
         // Banque de questions et examens
         List<Question> initQs = List.of(
@@ -632,9 +549,14 @@ public class DemoDataSeeder implements ApplicationRunner {
                         List.of("Touche Suppr", "Glisser dans la corbeille", "Double-clic", "Clic droit > Supprimer"), List.of(0, 1, 3), List.of(), 2),
                 unique(initiation, "Que signifie « www » dans une adresse web ?", List.of("World Wide Web", "Web Wireless World", "Windows Web Workspace", "World Web Window"), 0),
                 trueFalse(initiation, "Le bouton « Démarrer » de Windows se trouve généralement en bas à gauche de l'écran.", true));
-        question(initiation, null, QuestionType.PRATIQUE, "Créez un dossier « Mes documents ALuNI » contenant 3 sous-dossiers et déposez une capture d'écran.",
-                List.of(), List.of(), List.of(), 5);
         Exam initExam = exam(initiation, 20, 10, 60, initQs);
+        // Session d'examen en salle programmée par le formateur, dans une semaine de 9 h à 11 h
+        ExamSession roomSession = new ExamSession();
+        roomSession.setExam(initExam);
+        java.time.LocalDate examDay = java.time.LocalDate.now(Mapper.ZONE).plusDays(7);
+        roomSession.setStartsAt(examDay.atTime(9, 0).atZone(Mapper.ZONE).toInstant());
+        roomSession.setEndsAt(examDay.atTime(11, 0).atZone(Mapper.ZONE).toInstant());
+        examSessions.save(roomSession);
 
         // Quiz d'entraînement (Initiation)
         List<CourseModule> im = initiation.getModules();
@@ -695,8 +617,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         e = enroll(kodjo, design, EnrollmentStatus.ACTIF, "2026-06-03");
         complete(e, 7);
         Exam designExam = examByCourse.get(design.getSlug());
-        attempt(kodjo, designExam, 1, 55, 0, at("2026-09-28"));
-        attempt(kodjo, designExam, 2, 74, 0, at("2026-10-03"));
+        attempt(kodjo, designExam, 1, 74, 0, at("2026-10-03"));
         certificate("ALUNI-2026-000152", kodjo, design, CertType.COMPETENCE, 74, "2026-10-05", CertificateStatus.VALIDE);
 
         e = enroll(mawuli, word, EnrollmentStatus.ACTIF, "2026-05-11");
@@ -709,20 +630,15 @@ public class DemoDataSeeder implements ApplicationRunner {
         e = enroll(yawa, initiation, EnrollmentStatus.ACTIF, "2026-10-01");
         complete(e, 2);
         e = enroll(edem, excel, EnrollmentStatus.ACTIF, "2026-08-28");
-        completePercent(e, 55);
+        completePercent(e, 100);
         attempt(edem, examByCourse.get(excel.getSlug()), 1, 52, 1, at("2026-10-08"));
         enroll(edem, maintenance, EnrollmentStatus.EN_ATTENTE, "2026-10-17");
-
-        // Exercices déposés
-        submission(kodjo, design, lessonByTitle(design, "Créer une affiche d'événement"), "affiche_kodjo.png", new Color(0xD9530F), "2026-10-12", null);
-        submission(afi, entrepreneuriat, lessonByTitle(entrepreneuriat, "Calendrier de publication"), "calendrier_afi.xlsx", Color.WHITE, "2026-10-11", null);
-        submission(essi, initiation, lessonByTitle(initiation, "Créer et renommer un dossier"), "dossiers_essi.jpg", new Color(0x1A6F33), "2026-10-02", 17);
 
         // Autres apprenants (statistiques réalistes)
         generateLearners(List.of(initiation, word, excel, web, design, securite, entrepreneuriat, maintenance), examByCourse);
 
         // Notifications de l'apprenant de démonstration
-        notification(kossi, NotificationType.EXAM, "Examen ouvert", "L'examen final « Initiation à l'informatique » est disponible.", "/apprenant/examens", "2026-10-10", false);
+        notification(kossi, NotificationType.EXAM, "Examen final programmé", "L'examen « Initiation à l'informatique » aura lieu en salle dans une semaine, de 9 h à 11 h. Une seule tentative : soyez à l'heure.", "/apprenant/examens", "2026-10-10", false);
         notification(kossi, NotificationType.LESSON, "Nouvelle leçon", "Une nouvelle leçon « Mise en page avec Flexbox » a été ajoutée.", "/apprendre/site-web-html-css", "2026-10-08", false);
         notification(kossi, NotificationType.CERTIFICATE, "Certificat disponible", "Votre attestation « Sécurité en ligne » est prête à être téléchargée.", "/apprenant/certificats/ALUNI-2026-000121", "2026-08-02", true);
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, Suspense } from 'react'
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import {
-  Award, BarChart3, Bell, BookOpen, ClipboardCheck, ClipboardList, Compass, FileCheck, Globe, Home, LayoutDashboard,
+  Award, BarChart3, Bell, BookOpen, ClipboardCheck, Compass, Globe, Home, LayoutDashboard,
   Library, LogOut, Menu, Settings, Tags, User, UserCheck, Users, X,
 } from 'lucide-react'
 import { PROFILE_LABELS } from '../data/constants'
@@ -26,7 +26,6 @@ const NAVS = {
     { to: '/formateur/formations', label: 'Mes formations', icon: BookOpen },
     { to: '/formateur/questions', label: 'Banque de questions', icon: Library },
     { to: '/formateur/apprenants', label: 'Mes apprenants', icon: Users },
-    { to: '/formateur/corrections', label: 'Corrections', icon: FileCheck, badge: 'toGrade' },
     { to: '/formateur/profil', label: 'Mon profil', icon: User },
   ],
   admin: [
@@ -53,12 +52,9 @@ function useCounters(role, pathname) {
         if (role === 'apprenant') {
           const { count } = await api.get('/me/notifications/unread-count')
           if (!cancelled) setCounters({ unread: count })
-        } else if (role === 'formateur') {
-          const subs = await api.get('/trainer/submissions')
-          if (!cancelled) setCounters({ toGrade: subs.filter((s) => s.status === 'a-corriger').length })
         } else if (role === 'admin') {
           const v = await api.get('/admin/validations')
-          if (!cancelled) setCounters({ validations: v.trainers.length + v.courses.length + v.enrollments.length + v.certificates.length })
+          if (!cancelled) setCounters({ validations: v.trainers.length + v.enrollments.length + v.certificates.length })
         }
       } catch {
         /* compteur indisponible : on n'affiche rien */
@@ -190,12 +186,6 @@ export default function DashboardLayout({ role }) {
                 <Link to="/apprenant/notifications" className="relative rounded-full p-2.5 text-gray-700 hover:bg-gray-100" aria-label={`Notifications (${counters.unread ?? 0} non lues)`}>
                   <Bell className="size-5" />
                   {counters.unread > 0 && <span className="absolute top-1.5 right-1.5 flex size-4 items-center justify-center rounded-full bg-flame-500 text-[10px] font-bold text-white">{counters.unread}</span>}
-                </Link>
-              )}
-              {role === 'formateur' && (
-                <Link to="/formateur/corrections" className="relative rounded-full p-2.5 text-gray-700 hover:bg-gray-100" aria-label="Corrections en attente">
-                  <ClipboardList className="size-5" />
-                  {counters.toGrade > 0 && <span className="absolute top-1.5 right-1.5 size-2.5 rounded-full bg-flame-500" />}
                 </Link>
               )}
               {user && <UserMenu />}

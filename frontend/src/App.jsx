@@ -32,7 +32,6 @@ const CoursePlayer = lazy(() => import('./pages/learner/CoursePlayer'))
 const Exam = lazy(() => import('./pages/learner/Exam'))
 const Profile = lazy(() => import('./pages/Profile'))
 
-const Grading = lazy(() => import('./pages/trainer/TrainerPages').then((m) => ({ default: m.Grading })))
 const QuestionBank = lazy(() => import('./pages/trainer/TrainerPages').then((m) => ({ default: m.QuestionBank })))
 const TrainerCourses = lazy(() => import('./pages/trainer/TrainerPages').then((m) => ({ default: m.TrainerCourses })))
 const TrainerDashboard = lazy(() => import('./pages/trainer/TrainerPages').then((m) => ({ default: m.TrainerDashboard })))
@@ -110,7 +109,6 @@ const router = createBrowserRouter([
           { path: 'formations/:id', element: <CourseEditor /> },
           { path: 'questions', element: <QuestionBank /> },
           { path: 'apprenants', element: <TrainerLearners /> },
-          { path: 'corrections', element: <Grading /> },
           { path: 'profil', element: <Profile /> },
         ],
       },

@@ -34,6 +34,8 @@ import tg.cdej.aluni.domain.Course;
 import tg.cdej.aluni.domain.Enrollment;
 import tg.cdej.aluni.domain.EnrollmentStatus;
 import tg.cdej.aluni.domain.Exam;
+import tg.cdej.aluni.domain.ExamSession;
+import tg.cdej.aluni.domain.LearningMode;
 import tg.cdej.aluni.domain.ExamAttempt;
 import tg.cdej.aluni.domain.NotificationType;
 import tg.cdej.aluni.domain.Question;
@@ -52,6 +54,7 @@ import tg.cdej.aluni.dto.ExamDtos.SaveResponse;
 import tg.cdej.aluni.repository.CertificateRepository;
 import tg.cdej.aluni.repository.EnrollmentRepository;
 import tg.cdej.aluni.repository.ExamAttemptRepository;
+import tg.cdej.aluni.repository.ExamSessionRepository;
 import tg.cdej.aluni.repository.ExamRepository;
 import tg.cdej.aluni.repository.QuestionRepository;
 
@@ -64,6 +67,7 @@ public class ExamService {
 
     private final ExamRepository exams;
     private final ExamAttemptRepository attempts;
+    private final ExamSessionRepository sessions;
     private final QuestionRepository questions;
     private final EnrollmentRepository enrollments;
     private final CertificateRepository certificates;
@@ -73,12 +77,13 @@ public class ExamService {
     private final Mapper mapper;
     private final AppProperties props;
 
-    public ExamService(ExamRepository exams, ExamAttemptRepository attempts, QuestionRepository questions,
+    public ExamService(ExamRepository exams, ExamAttemptRepository attempts, ExamSessionRepository sessions, QuestionRepository questions,
             EnrollmentRepository enrollments, CertificateRepository certificates,
             CertificateService certificateService, NotificationService notifications, LearningService learning,
             Mapper mapper, AppProperties props) {
         this.exams = exams;
         this.attempts = attempts;
+        this.sessions = sessions;
         this.questions = questions;
         this.enrollments = enrollments;
         this.certificates = certificates;
@@ -87,6 +92,55 @@ public class ExamService {
         this.learning = learning;
         this.mapper = mapper;
         this.props = props;
+    }
+
+    // ------------------------------------------------------------ Règles d'accès selon la modalité
+
+    /** En salle : une seule tentative, pendant une session programmée par le formateur. */
+    static final int ROOM_ATTEMPTS = 1;
+
+    /**
+     * Décision d'accès à l'examen final.
+     *
+     * @param blockedReason motif affiché à l'apprenant quand il ne peut pas commencer
+     * @param refused       true : refus définitif (déjà réussi, tentative utilisée) plutôt qu'accès pas encore ouvert
+     */
+    private record Access(boolean canStart, String blockedReason, boolean refused, ExamSession current, ExamSession next,
+            Integer attemptsLeft) {
+    }
+
+    private Access access(Exam exam, Enrollment enrollment, List<ExamAttempt> list) {
+        boolean passed = list.stream().anyMatch(a -> Boolean.TRUE.equals(a.getPassed()));
+        boolean inProgress = list.stream().anyMatch(a -> a.getStatus() == AttemptStatus.EN_COURS);
+        String empty = exam.getQuestions().isEmpty() ? "Cet examen ne contient pas encore de questions." : null;
+        if (enrollment.getMode() == LearningMode.SALLE) {
+            Instant now = Instant.now();
+            List<ExamSession> all = sessions.findByExamOrderByStartsAtAsc(exam);
+            ExamSession current = all.stream().filter(s -> s.isRunning(now)).findFirst().orElse(null);
+            ExamSession next = all.stream().filter(s -> s.getStartsAt().isAfter(now)).findFirst().orElse(null);
+            int left = Math.max(0, ROOM_ATTEMPTS - list.size());
+            if (inProgress) return new Access(true, null, false, current, next, left);
+            if (passed) return new Access(false, "Vous avez déjà réussi cet examen.", true, current, next, left);
+            if (left == 0) {
+                return new Access(false, "Vous avez déjà passé cet examen : en salle, une seule tentative est autorisée.", true,
+                        current, next, 0);
+            }
+            if (current == null) {
+                String when = next == null ? "Votre formateur n'a pas encore programmé la session d'examen."
+                        : "L'examen aura lieu " + Mapper.when(next.getStartsAt()) + " (jusqu'à " + Mapper.hour(next.getEndsAt()) + ").";
+                return new Access(false, when, false, null, next, left);
+            }
+            return new Access(empty == null, empty, false, current, next, left);
+        }
+        // En ligne : à tout moment une fois tous les modules terminés, tentatives illimitées jusqu'à la réussite
+        if (inProgress) return new Access(true, null, false, null, null, null);
+        if (passed) return new Access(false, "Vous avez déjà réussi cet examen.", true, null, null, null);
+        int progress = learning.progressOf(enrollment.getUser(), exam.getCourse());
+        if (progress < 100) {
+            return new Access(false, "Terminez d'abord toutes les leçons de la formation (" + progress
+                    + " % terminé) : l'examen final s'ouvre une fois tous les modules validés.", false, null, null, null);
+        }
+        return new Access(empty == null, empty, false, null, null, null);
     }
 
     // ------------------------------------------------------------ Liste des examens de l'apprenant
@@ -98,15 +152,17 @@ public class ExamService {
             if (e.getStatus() != EnrollmentStatus.ACTIF || !e.getCourse().delivers(CertType.COMPETENCE)) continue;
             exams.findByCourse(e.getCourse()).ifPresent(exam -> {
                 List<ExamAttempt> list = attempts.findByExamAndUserOrderByNumberAsc(exam, user);
-                long submitted = list.stream().filter(a -> a.getStatus() == AttemptStatus.SOUMIS).count();
                 boolean passed = list.stream().anyMatch(a -> Boolean.TRUE.equals(a.getPassed()));
+                Access access = access(exam, e, list);
                 Long inProgress = list.stream().filter(a -> a.getStatus() == AttemptStatus.EN_COURS)
                         .map(ExamAttempt::getId).findFirst().orElse(null);
                 String code = certificates.findByUserAndCourseAndType(user, exam.getCourse(), CertType.COMPETENCE)
                         .map(Certificate::getCode).orElse(null);
-                result.add(new MyExam(mapper.exam(exam), list.stream().map(ExamService::row).toList(),
-                        (int) Math.max(0, exam.getAttemptsAllowed() - submitted), passed, inProgress,
-                        learning.progressOf(user, exam.getCourse()), code));
+                result.add(new MyExam(mapper.exam(exam), Codes.of(e.getMode()), list.stream().map(ExamService::row).toList(),
+                        access.attemptsLeft(), passed, inProgress, learning.progressOf(user, exam.getCourse()), code,
+                        access.current() == null ? null : mapper.session(access.current()),
+                        access.next() == null ? null : mapper.session(access.next()),
+                        access.canStart(), access.blockedReason()));
             });
         }
         return result;
@@ -123,11 +179,12 @@ public class ExamService {
     public AttemptState start(User user, Long examId, String ip) {
         Exam exam = exams.findById(examId).orElseThrow(() -> ApiException.notFound("Examen introuvable."));
         Course course = exam.getCourse();
-        enrollments.findByUserAndCourse(user, course)
+        Enrollment enrollment = enrollments.findByUserAndCourse(user, course)
                 .filter(e -> e.getStatus() == EnrollmentStatus.ACTIF)
                 .orElseThrow(() -> ApiException.forbidden("Vous devez être inscrit à la formation pour passer cet examen."));
-        if (exam.isRoomOnly() && !fromRoom(ip)) {
-            throw ApiException.forbidden("Cet examen ne peut être passé que depuis les postes de la salle de l'Académie.");
+        boolean room = enrollment.getMode() == LearningMode.SALLE;
+        if (room && exam.isRoomOnly() && !fromRoom(ip)) {
+            throw ApiException.forbidden("Cet examen se passe sur les postes de la salle informatique de l'Académie.");
         }
 
         ExamAttempt current = attempts.findFirstByExamAndUserAndStatus(exam, user, AttemptStatus.EN_COURS).orElse(null);
@@ -142,14 +199,14 @@ public class ExamService {
             return state(current, true);
         }
 
-        if (!exam.isOpen(LocalDate.now())) throw ApiException.badRequest("Cet examen n'est pas ouvert actuellement.");
+        // En salle : session programmée et une seule tentative ; en ligne : modules terminés, tentatives illimitées
         List<ExamAttempt> previous = attempts.findByExamAndUserOrderByNumberAsc(exam, user);
-        if (previous.stream().anyMatch(a -> Boolean.TRUE.equals(a.getPassed()))) {
-            throw ApiException.badRequest("Vous avez déjà réussi cet examen.");
+        Access access = access(exam, enrollment, previous);
+        if (!access.canStart()) {
+            throw access.refused() ? ApiException.badRequest(access.blockedReason()) : ApiException.forbidden(access.blockedReason());
         }
-        if (previous.size() >= exam.getAttemptsAllowed()) throw ApiException.badRequest("Vous avez utilisé toutes vos tentatives.");
 
-        List<Question> pool = exam.getQuestions().stream().filter(q -> q.getType() != QuestionType.PRATIQUE)
+        List<Question> pool = exam.getQuestions().stream()
                 .collect(Collectors.toCollection(ArrayList::new));
         if (pool.isEmpty()) throw ApiException.badRequest("Cet examen ne contient pas encore de questions.");
         Random random = new Random(RANDOM.nextLong());
@@ -162,7 +219,10 @@ public class ExamService {
         a.setNumber(previous.size() + 1);
         a.setStatus(AttemptStatus.EN_COURS);
         a.setStartedAt(Instant.now());
-        a.setEndsAt(Instant.now().plus(Duration.ofMinutes(exam.getDurationMin())));
+        Instant ends = Instant.now().plus(Duration.ofMinutes(exam.getDurationMin()));
+        // En salle, l'examen se termine au plus tard à la fin du créneau programmé
+        if (room && access.current() != null && access.current().getEndsAt().isBefore(ends)) ends = access.current().getEndsAt();
+        a.setEndsAt(ends);
         a.setSessionToken(UUID.randomUUID().toString());
         a.setIpAddress(ip);
         a.setQuestionIds(drawn.stream().map(Question::getId).toList());
@@ -325,8 +385,11 @@ public class ExamService {
 
     private AttemptResult result(ExamAttempt a) {
         Exam exam = a.getExam();
-        long submitted = attempts.findByExamAndUserOrderByNumberAsc(exam, a.getUser()).stream()
-                .filter(x -> x.getStatus() == AttemptStatus.SOUMIS).count();
+        Enrollment enrollment = enrollments.findByUserAndCourse(a.getUser(), exam.getCourse()).orElse(null);
+        LearningMode mode = enrollment == null ? LearningMode.EN_LIGNE : enrollment.getMode();
+        long used = attempts.findByExamAndUserOrderByNumberAsc(exam, a.getUser()).size();
+        Integer left = mode == LearningMode.SALLE ? (int) Math.max(0, ROOM_ATTEMPTS - used) : null;
+        boolean canRetry = !Boolean.TRUE.equals(a.getPassed()) && (left == null || left > 0);
         CertificateRef cert = certificates.findByUserAndCourseAndType(a.getUser(), exam.getCourse(), CertType.COMPETENCE)
                 .filter(c -> Boolean.TRUE.equals(a.getPassed()))
                 .map(c -> new CertificateRef(c.getCode(), Codes.of(c.getStatus()))).orElse(null);
@@ -341,7 +404,7 @@ public class ExamService {
             }).toList();
         }
         return new AttemptResult(a.getId(), a.getScore() == null ? 0 : a.getScore(), Boolean.TRUE.equals(a.getPassed()),
-                exam.getPassMark(), (int) Math.max(0, exam.getAttemptsAllowed() - submitted), cert, corrections,
+                exam.getPassMark(), Codes.of(mode), left, canRetry, cert, corrections,
                 exam.getCourse().getSlug(), exam.getTitle());
     }
 

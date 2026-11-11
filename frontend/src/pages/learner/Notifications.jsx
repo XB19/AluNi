@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import { Award, Bell, BookOpen, CheckCheck, ClipboardCheck, FileCheck, UserCheck } from 'lucide-react'
+import { Award, Bell, BookOpen, CheckCheck, ClipboardCheck, UserCheck } from 'lucide-react'
 import { formatDate } from '../../data/constants'
 import { api } from '../../api/client'
 import { useApi } from '../../api/useApi'
@@ -10,7 +10,6 @@ const ICONS = {
   lesson: [BookOpen, 'bg-blue-50 text-blue-700'],
   certificate: [Award, 'bg-gold-100 text-gold-700'],
   enrollment: [UserCheck, 'bg-brand-50 text-brand-700'],
-  grade: [FileCheck, 'bg-violet-50 text-violet-700'],
   account: [Bell, 'bg-gray-100 text-gray-700'],
   course: [BookOpen, 'bg-brand-50 text-brand-700'],
 }

@@ -1,22 +1,36 @@
 import { Link } from 'react-router'
-import { CalendarDays, CheckCircle2, ClipboardCheck, Clock, Lock, MonitorSmartphone, RotateCcw, Target, XCircle } from 'lucide-react'
-import { formatDate } from '../../data/constants'
+import { CalendarDays, CheckCircle2, ClipboardCheck, Clock, Globe, Lock, MonitorSmartphone, RotateCcw, Target, XCircle } from 'lucide-react'
+import { LEARNING_MODES, formatDate, formatSession } from '../../data/constants'
 import { useApi } from '../../api/useApi'
-import { Async, Badge, Button, EmptyState, PageHeader } from '../../components/ui'
+import { Async, Badge, Button, cx, EmptyState, PageHeader, ProgressBar } from '../../components/ui'
+
+/** Badge de modalité : en salle (session programmée, une tentative) ou en ligne (tentatives illimitées). */
+export function ModeBadge({ mode }) {
+  const m = LEARNING_MODES[mode]
+  if (!m) return null
+  const Icon = mode === 'salle' ? MonitorSmartphone : Globe
+  return <Badge tone={m.tone}><Icon className="size-3.5" />{m.label}</Badge>
+}
 
 function ExamCard({ item }) {
-  const { exam, attempts, attemptsLeft, passed, inProgressAttemptId, progress, certificateCode } = item
+  const { exam, mode, attempts, attemptsLeft, passed, inProgressAttemptId, progress, certificateCode, currentSession, nextSession, canStart, blockedReason } = item
+  const room = mode === 'salle'
   const submitted = attempts.filter((a) => a.status === 'soumis')
   const best = submitted.length ? Math.max(...submitted.map((a) => a.score)) : null
+  const usedUp = room && attemptsLeft === 0 && !passed && !inProgressAttemptId
+  const waitingLessons = !room && !passed && !inProgressAttemptId && progress < 100
   return (
     <div className="space-y-4">
       <div className="card overflow-hidden">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b border-gray-100 p-5 sm:p-6">
           <div>
             <div className="flex flex-wrap gap-2">
-              {passed ? <Badge tone="green"><CheckCircle2 className="size-3.5" />Réussi</Badge> : exam.open ? <Badge tone="flame">Ouvert</Badge> : <Badge>Fermé</Badge>}
+              {passed ? <Badge tone="green"><CheckCircle2 className="size-3.5" />Réussi</Badge>
+                : usedUp ? <Badge tone="flame"><XCircle className="size-3.5" />Non validé</Badge>
+                : canStart ? <Badge tone="flame">Ouvert</Badge>
+                : <Badge><Lock className="size-3.5" />Pas encore ouvert</Badge>}
               <Badge>Examen final</Badge>
-              {exam.roomOnly && <Badge tone="blue"><MonitorSmartphone className="size-3.5" />En salle</Badge>}
+              <ModeBadge mode={mode} />
             </div>
             <h2 className="mt-2 text-xl font-bold">{exam.title}</h2>
             <Link to={`/apprendre/${exam.course.slug}`} className="mt-1 inline-block text-sm text-gray-600 hover:text-brand-700">{exam.course.title}</Link>
@@ -25,18 +39,22 @@ function ExamCard({ item }) {
             <Button to={certificateCode ? `/apprenant/certificats/${certificateCode}` : '/apprenant/certificats'} variant="secondary">Voir mon certificat</Button>
           ) : inProgressAttemptId ? (
             <Button to={`/examen/${exam.id}`} variant="flame" size="lg">Reprendre l'examen</Button>
-          ) : attemptsLeft > 0 && exam.open ? (
-            <Button to={`/examen/${exam.id}`} variant="flame" size="lg">{submitted.length ? 'Nouvelle tentative' : "Commencer l'examen"}</Button>
+          ) : canStart ? (
+            <Button to={`/examen/${exam.id}`} variant="flame" size="lg">{submitted.length ? "Repasser l'examen" : "Commencer l'examen"}</Button>
+          ) : waitingLessons ? (
+            <Button to={`/apprendre/${exam.course.slug}`} variant="secondary">Terminer la formation ({progress} %)</Button>
           ) : (
-            <Button disabled variant="outline-gray"><Lock className="size-4" />{attemptsLeft > 0 ? 'Examen fermé' : 'Tentatives épuisées'}</Button>
+            <Button disabled variant="outline-gray"><Lock className="size-4" />{usedUp ? 'Tentative utilisée' : 'Pas encore ouvert'}</Button>
           )}
         </div>
         <dl className="grid grid-cols-2 gap-4 p-5 sm:grid-cols-4 sm:p-6">
           {[
             [Clock, 'Durée', `${exam.durationMin} minutes`],
             [Target, 'Note de réussite', `${exam.passMark} / 100`],
-            [RotateCcw, 'Tentatives restantes', `${attemptsLeft} sur ${exam.attemptsAllowed}`],
-            [CalendarDays, 'Fermeture', exam.closesAt ? formatDate(exam.closesAt) : 'Aucune'],
+            [RotateCcw, 'Tentatives', room ? (attemptsLeft > 0 ? 'Une seule' : 'Utilisée') : 'Illimitées'],
+            room
+              ? [CalendarDays, 'Session', currentSession ? 'En cours' : nextSession ? formatDate(nextSession.startsAt) : 'À programmer']
+              : [CalendarDays, 'Disponibilité', 'À tout moment'],
           ].map(([Icon, k, v]) => (
             <div key={k} className="flex gap-3">
               <Icon className="mt-0.5 size-5 shrink-0 text-gray-400" />
@@ -47,10 +65,22 @@ function ExamCard({ item }) {
             </div>
           ))}
         </dl>
-        {progress < 100 && !passed && (
-          <p className="bg-amber-50 px-6 py-3 text-sm text-amber-900">
-            Conseil : vous avez terminé {progress}% des leçons. Révisez les modules avant de passer l'examen pour mettre toutes les chances de votre côté.
-          </p>
+        {!passed && !inProgressAttemptId && (
+          <div className={cx('border-t px-5 py-4 sm:px-6', canStart ? 'border-gray-100 bg-white' : usedUp ? 'border-red-100 bg-red-50' : 'border-amber-100 bg-amber-50')}>
+            {room && currentSession && canStart && (
+              <p className="text-sm font-semibold text-brand-800">Session en cours : {formatSession(currentSession)}. Vous pouvez composer maintenant.</p>
+            )}
+            {!canStart && blockedReason && (
+              <p className={cx('flex items-start gap-2 text-sm font-semibold', usedUp ? 'text-red-800' : 'text-amber-900')}><Lock className="mt-0.5 size-4 shrink-0" />{blockedReason}</p>
+            )}
+            {waitingLessons && (
+              <>
+                <ProgressBar value={progress} size="sm" className="mt-3 max-w-md" />
+                <p className="mt-1.5 text-xs text-amber-900/80">{progress} % de la formation terminé</p>
+              </>
+            )}
+            <p className="mt-2 text-xs text-gray-600">{LEARNING_MODES[mode]?.text}</p>
+          </div>
         )}
       </div>
 
