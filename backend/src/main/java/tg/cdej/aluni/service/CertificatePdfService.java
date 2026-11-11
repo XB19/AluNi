@@ -79,9 +79,12 @@ public class CertificatePdfService {
             float h = page.getHeight();
             float u = w / 100f; // 1 % de la largeur, l'équivalent du « cqw » de l'aperçu
 
-            BaseFont regular = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
-            BaseFont bold = BaseFont.createFont(BaseFont.HELVETICA_BOLD, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
-            BaseFont script = BaseFont.createFont(BaseFont.TIMES_BOLDITALIC, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
+            BaseFont light = font("PlusJakartaSans-Light.ttf");
+            BaseFont regular = font("PlusJakartaSans-Regular.ttf");
+            BaseFont semibold = font("PlusJakartaSans-SemiBold.ttf");
+            BaseFont bold = font("PlusJakartaSans-Bold.ttf");
+            BaseFont extrabold = font("PlusJakartaSans-ExtraBold.ttf");
+            BaseFont script = font("GreatVibes-Regular.ttf");
             byte[] logoBytes;
             try (InputStream logo = new ClassPathResource("static/logo-cdej.jpg").getInputStream()) {
                 logoBytes = logo.readAllBytes();
@@ -113,7 +116,7 @@ public class CertificatePdfService {
             cb.fill();
             cb.restoreState();
 
-            // ---- En-tête du bandeau : logo, ALuNI, nom de l'Académie × CDEJ
+            // ---- En-tête du bandeau : logo, ALuNI et nom de l'Académie, puis CDEJ
             float left = x0 + iw * 0.13f;
             float midBand = bandY + bandH / 2;
             float logoR = 3.1f * u;
@@ -133,44 +136,43 @@ public class CertificatePdfService {
             float tx = left + 2 * logoR + 1.2f * u;
             float brand = 3f * u;
             float bx = tx;
-            bx += text(cb, bold, brand, Color.WHITE, bx, midBand + 0.2f * u, "ALu", Element.ALIGN_LEFT);
-            bx += text(cb, bold, brand, new Color(0xFFB27A), bx, midBand + 0.2f * u, "N", Element.ALIGN_LEFT);
-            text(cb, bold, brand, Color.WHITE, bx, midBand + 0.2f * u, "I", Element.ALIGN_LEFT);
+            bx += text(cb, extrabold, brand, Color.WHITE, bx, midBand - 0.7f * u, "ALu", Element.ALIGN_LEFT, TIGHT);
+            bx += text(cb, extrabold, brand, new Color(0xFFB27A), bx, midBand - 0.7f * u, "N", Element.ALIGN_LEFT, TIGHT);
+            bx += text(cb, extrabold, brand, Color.WHITE, bx, midBand - 0.7f * u, "I", Element.ALIGN_LEFT, TIGHT);
             String academyName = settings.get("academy.name");
-            text(cb, regular, 1.15f * u, Color.WHITE, tx, midBand - 1.6f * u, academyName, Element.ALIGN_LEFT);
-            float afterName = tx + Math.max(regular.getWidthPoint(academyName, 1.15f * u), bold.getWidthPoint("ALuNI", brand));
-            float sx = afterName + 2f * u;
-            sx += text(cb, regular, 1.6f * u, new Color(0xDDE7DF), sx, midBand - 0.5f * u, "×", Element.ALIGN_LEFT);
-            text(cb, bold, 2.8f * u, Color.WHITE, sx + 2f * u, midBand - 0.9f * u, "CDEJ " + settings.get("academy.code"),
-                    Element.ALIGN_LEFT);
+            float nameW = text(cb, light, 1.15f * u, Color.WHITE, tx, midBand - 2.5f * u, academyName, Element.ALIGN_LEFT);
+            float sx = Math.max(tx + nameW, bx) + 3.5f * u;
+            text(cb, extrabold, 2.8f * u, Color.WHITE, sx, midBand - 1.45f * u, "CDEJ " + settings.get("academy.code"),
+                    Element.ALIGN_LEFT, TIGHT);
 
             // ---- Sceau de certification, à cheval sur le bandeau
             float sealR = 8.5f * u;
             float sealCx = x0 + iw * 0.91f - sealR;
             float sealCy = bandY;
-            seal(cb, p, bold, logoBytes, sealCx, sealCy, sealR);
+            seal(cb, p, bold, extrabold, logoBytes, sealCx, sealCy, sealR);
 
             // ---- Corps aligné à gauche
             boolean competence = "competence".equals(c.type());
             float y = bandY - 4.6f * u - 2.8f * u;
-            text(cb, bold, 3.5f * u, INK, left, y, c.name(), Element.ALIGN_LEFT);
-            y -= 1.2f * u;
+            text(cb, extrabold, 3.5f * u, INK, left, y, c.name(), Element.ALIGN_LEFT, TIGHT);
+            y -= 1.25f * u;
             dashed(cb, left, y, 36 * u);
-            y -= 1.3f * u;
+            y -= 1.15f * u;
             text(cb, regular, 0.95f * u, MUTED, left, y, "Titulaire", Element.ALIGN_LEFT);
 
-            y -= 3.6f * u;
+            y -= 4.1f * u;
             text(cb, regular, 1.1f * u, MUTED, left, y,
                     competence ? "a obtenu le Certificat de compétence en" : "a obtenu l'Attestation de suivi de la formation",
                     Element.ALIGN_LEFT);
             float titleSize = (c.course().title().length() > 42 ? 2.5f : 3f) * u;
+            y -= 0.6f * u;
             for (String line : wrap(bold, titleSize, c.course().title(), 62 * u)) {
-                y -= titleSize * 1.15f;
+                y -= titleSize * 1.1f;
                 text(cb, bold, titleSize, INK, left, y, line, Element.ALIGN_LEFT);
             }
 
             // Ligne de champs : date et numéro
-            y -= 4.2f * u;
+            y -= 4.5f * u;
             String[][] fields = {
                     { "Date", DATE.format(c.date()) },
                     { "N° du certificat", c.code() } };
@@ -189,7 +191,7 @@ public class CertificatePdfService {
             text(cb, regular, 1f * u, MUTED, left, base + 1.3f * u, c.signatoryTitle(), Element.ALIGN_LEFT);
             text(cb, bold, 1.1f * u, INK, left, base + 2.6f * u, c.signatory(), Element.ALIGN_LEFT);
             dashed(cb, left, base + 3.9f * u, 30 * u);
-            text(cb, script, 3.1f * u, INK, left, base + 4.6f * u, c.signatory(), Element.ALIGN_LEFT);
+            text(cb, script, 3.1f * u, INK, left, base + 5.2f * u, c.signatory(), Element.ALIGN_LEFT);
 
             // QR code de vérification (en bas à droite)
             float qrSize = 7.5f * u;
@@ -205,7 +207,7 @@ public class CertificatePdfService {
             cb.addImage(qr);
             float qtx = qrX - 1.7f * u;
             float qty = base + qrSize / 2 + 1.2f * u;
-            text(cb, bold, 0.9f * u, INK, qtx, qty, "Vérifier l'authenticité", Element.ALIGN_RIGHT);
+            text(cb, semibold, 0.9f * u, INK, qtx, qty, "Vérifier l'authenticité", Element.ALIGN_RIGHT);
             text(cb, regular, 0.9f * u, MUTED, qtx, qty - 1.2f * u, "Scannez le code ou rendez-vous", Element.ALIGN_RIGHT);
             text(cb, regular, 0.9f * u, MUTED, qtx, qty - 2.4f * u, "sur la page « Vérifier un certificat »", Element.ALIGN_RIGHT);
 
@@ -216,7 +218,7 @@ public class CertificatePdfService {
                 cb.setGState(faded);
                 cb.setColorFill(new Color(220, 38, 38));
                 cb.beginText();
-                cb.setFontAndSize(bold, 14 * u);
+                cb.setFontAndSize(extrabold, 14 * u);
                 cb.showTextAligned(Element.ALIGN_CENTER, "RÉVOQUÉ", w / 2, h / 2 - 5 * u, 18);
                 cb.endText();
                 cb.restoreState();
@@ -229,7 +231,8 @@ public class CertificatePdfService {
     }
 
     /** Sceau rond : « ACADÉMIE LUMIÈRE DU NUMÉRIQUE » en haut, « CERTIFICATION » en bas, logo au centre. */
-    private static void seal(PdfContentByte cb, Palette p, BaseFont bold, byte[] logoBytes, float cx, float cy, float r)
+    private static void seal(PdfContentByte cb, Palette p, BaseFont bold, BaseFont extrabold, byte[] logoBytes, float cx,
+            float cy, float r)
             throws Exception {
         float s = r / 100f; // même géométrie que le SVG de l'aperçu (viewBox 200)
         cb.setColorFill(Color.WHITE);
@@ -244,7 +247,7 @@ public class CertificatePdfService {
         cb.stroke();
 
         arcText(cb, bold, 11.5f * s, 1.2f * s, p.accent(), cx, cy, 66 * s, "ACADÉMIE LUMIÈRE DU NUMÉRIQUE", true);
-        arcText(cb, bold, 13f * s, 2.5f * s, p.seal(), cx, cy, 80 * s, "CERTIFICATION", false);
+        arcText(cb, extrabold, 13f * s, 2.5f * s, p.seal(), cx, cy, 80 * s, "CERTIFICATION", false);
         cb.setColorFill(p.seal());
         for (int side : new int[] { -1, 1 }) {
             double a = Math.toRadians(side < 0 ? 208 : 332);
@@ -333,16 +336,41 @@ public class CertificatePdfService {
         cb.restoreState();
     }
 
+    /** Resserrement des lettres des titres, comme « tracking-tight » sur le site. */
+    private static final float TIGHT = -0.025f;
+
     /** Écrit un texte et renvoie sa largeur. */
     private static float text(PdfContentByte cb, BaseFont font, float size, Color color, float x, float y, String value,
             int align) {
+        return text(cb, font, size, color, x, y, value, align, 0);
+    }
+
+    /** Écrit un texte avec un espacement des lettres (en em, aligné à gauche) et renvoie sa largeur. */
+    private static float text(PdfContentByte cb, BaseFont font, float size, Color color, float x, float y, String value,
+            int align, float tracking) {
         String v = value == null ? "" : value;
+        float spacing = tracking * size;
         cb.beginText();
         cb.setFontAndSize(font, size);
         cb.setColorFill(color);
+        cb.setCharacterSpacing(spacing);
         cb.showTextAligned(align, v, x, y, 0);
+        cb.setCharacterSpacing(0);
         cb.endText();
-        return font.getWidthPoint(v, size);
+        return font.getWidthPoint(v, size) + spacing * v.length();
+    }
+
+    /** Police intégrée au PDF depuis resources/fonts (mêmes fichiers que le site), chargée une seule fois. */
+    private static final Map<String, BaseFont> FONTS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static BaseFont font(String file) {
+        return FONTS.computeIfAbsent(file, f -> {
+            try (InputStream in = new ClassPathResource("fonts/" + f).getInputStream()) {
+                return BaseFont.createFont(f, BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, in.readAllBytes(), null);
+            } catch (Exception e) {
+                throw new IllegalStateException("Police introuvable : " + f, e);
+            }
+        });
     }
 
     /** Coupe un texte en lignes qui tiennent dans la largeur donnée. */

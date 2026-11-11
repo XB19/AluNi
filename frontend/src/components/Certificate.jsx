@@ -20,6 +20,9 @@ const PAPER = '#f7f8f7'
 const INK = '#1b1f1d'
 const MUTED = '#5b625e'
 const DOTTED = '#c5cbc7'
+// Mêmes polices que le PDF du serveur (resources/fonts) : le document téléchargé est identique à l'aperçu
+const SANS = '"Plus Jakarta Sans Variable", "Plus Jakarta Sans", sans-serif'
+const SCRIPT = '"Great Vibes", cursive'
 
 // Aperçu à l'écran du certificat (le PDF officiel est généré par le serveur avec la même mise en page).
 // Dimensions en cqw : le certificat garde ses proportions (A4 paysage) quelle que soit la largeur d'écran.
@@ -44,7 +47,7 @@ export default function Certificate({ cert, template, className = '' }) {
         <div className="absolute inset-x-0 top-0" style={{ height: '27%', background: templateSwatch(t) }}>
           <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,.22) 1px, transparent 1.3px)', backgroundSize: `${cq(1.3)} ${cq(1.3)}` }} />
           <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 32% 110%, rgba(255,255,255,.18), transparent 55%)' }} />
-          <div className="relative flex h-full items-center text-white" style={{ paddingLeft: '13%', gap: cq(2) }}>
+          <div className="relative flex h-full items-center text-white" style={{ paddingLeft: '13%', gap: cq(3.5) }}>
             <div className="flex items-center" style={{ gap: cq(1.2) }}>
               <img src={logo} alt="Logo CDEJ" className="rounded-full bg-white object-contain" style={{ width: cq(6.2), height: cq(6.2), padding: cq(0.35) }} />
               <div className="leading-none">
@@ -52,7 +55,6 @@ export default function Certificate({ cert, template, className = '' }) {
                 <p className="font-light" style={{ fontSize: cq(1.15), marginTop: cq(0.45), opacity: 0.92 }}>{academy.name}</p>
               </div>
             </div>
-            <span className="font-light" style={{ fontSize: cq(1.6), opacity: 0.8 }}>×</span>
             <p className="font-extrabold tracking-tight" style={{ fontSize: cq(2.8) }}>CDEJ {academy.code}</p>
           </div>
         </div>
@@ -86,7 +88,7 @@ export default function Certificate({ cert, template, className = '' }) {
 
           <div className="absolute flex items-end justify-between" style={{ left: '13%', right: '6%', bottom: cq(3) }}>
             <div style={{ width: cq(30) }}>
-              <p className="leading-none" style={{ fontFamily: '"Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive', fontSize: cq(3.1), color: INK }}>{cert.signatory}</p>
+              <p className="leading-none" style={{ fontFamily: SCRIPT, fontSize: cq(3.1), color: INK }}>{cert.signatory}</p>
               <div style={{ borderTop: `${cq(0.12)} dashed ${DOTTED}`, marginTop: cq(0.4) }} />
               <p className="font-bold" style={{ fontSize: cq(1.1), color: INK, marginTop: cq(0.45) }}>{cert.signatory}</p>
               <p style={{ fontSize: cq(1), color: MUTED }}>{cert.signatoryTitle}</p>
@@ -123,10 +125,10 @@ function Seal({ t, style }) {
       <circle cx="100" cy="100" r="97" fill="#fff" />
       <circle cx="100" cy="100" r="89" fill="none" stroke={t.accent} strokeWidth="3" />
       <circle cx="100" cy="100" r="55" fill="none" stroke={t.accent} strokeWidth="1.6" />
-      <text fill={t.accent} fontSize="11.5" fontWeight="700" letterSpacing="1.2" fontFamily="system-ui, 'Segoe UI', sans-serif">
+      <text fill={t.accent} fontSize="11.5" fontWeight="700" letterSpacing="1.2" fontFamily={SANS}>
         <textPath href={`#top-${id}`} startOffset="50%" textAnchor="middle">ACADÉMIE LUMIÈRE DU NUMÉRIQUE</textPath>
       </text>
-      <text fill={t.seal} fontSize="13" fontWeight="800" letterSpacing="2.5" fontFamily="system-ui, 'Segoe UI', sans-serif">
+      <text fill={t.seal} fontSize="13" fontWeight="800" letterSpacing="2.5" fontFamily={SANS}>
         <textPath href={`#bottom-${id}`} startOffset="50%" textAnchor="middle">CERTIFICATION</textPath>
       </text>
       <circle cx="35.5" cy="128" r="2.6" fill={t.seal} />

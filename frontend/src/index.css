@@ -129,3 +129,10 @@
   .reveal { opacity: 1; transform: none; }
 }
 
+
+/* Police de signature des certificats (même fichier que le PDF du serveur) */
+@font-face {
+  font-family: 'Great Vibes';
+  src: url('./assets/fonts/GreatVibes-Regular.ttf') format('truetype');
+  font-display: swap;
+}
