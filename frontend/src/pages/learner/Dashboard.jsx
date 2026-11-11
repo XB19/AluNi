@@ -105,7 +105,7 @@ export default function LearnerDashboard() {
                         </div>
                       )}
                     </div>
-                    {e.progress === 100 && <CheckCircle2 className="size-5 shrink-0 text-brand-600" />}
+                    {e.finished && <CheckCircle2 className="size-5 shrink-0 text-brand-600" />}
                   </Link>
                 </li>
               ))}

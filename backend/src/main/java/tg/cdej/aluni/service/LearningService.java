@@ -16,6 +16,7 @@ import tg.cdej.aluni.common.ApiException;
 import tg.cdej.aluni.common.Codes;
 import tg.cdej.aluni.domain.AccessMode;
 import tg.cdej.aluni.domain.AccountStatus;
+import tg.cdej.aluni.domain.AttemptStatus;
 import tg.cdej.aluni.domain.CertType;
 import tg.cdej.aluni.domain.Certificate;
 import tg.cdej.aluni.domain.Course;
@@ -45,6 +46,7 @@ import tg.cdej.aluni.repository.CertificateRepository;
 import tg.cdej.aluni.repository.CourseModuleRepository;
 import tg.cdej.aluni.repository.CourseRepository;
 import tg.cdej.aluni.repository.EnrollmentRepository;
+import tg.cdej.aluni.repository.ExamAttemptRepository;
 import tg.cdej.aluni.repository.ExamRepository;
 import tg.cdej.aluni.repository.LessonProgressRepository;
 import tg.cdej.aluni.repository.LessonRepository;
@@ -64,6 +66,7 @@ public class LearningService {
     private final QuestionRepository questions;
     private final ExamRepository exams;
     private final CertificateRepository certificates;
+    private final ExamAttemptRepository attempts;
     private final UserRepository users;
     private final CertificateService certificateService;
     private final NotificationService notifications;
@@ -72,7 +75,7 @@ public class LearningService {
     public LearningService(CourseRepository courses, EnrollmentRepository enrollments, LessonRepository lessons,
             CourseModuleRepository modules, LessonProgressRepository progress, QuizResultRepository quizResults,
             QuestionRepository questions, ExamRepository exams, CertificateRepository certificates,
-            UserRepository users, CertificateService certificateService,
+            ExamAttemptRepository attempts, UserRepository users, CertificateService certificateService,
             NotificationService notifications, Mapper mapper) {
         this.courses = courses;
         this.enrollments = enrollments;
@@ -83,6 +86,7 @@ public class LearningService {
         this.questions = questions;
         this.exams = exams;
         this.certificates = certificates;
+        this.attempts = attempts;
         this.users = users;
         this.certificateService = certificateService;
         this.notifications = notifications;
@@ -164,8 +168,20 @@ public class LearningService {
                 .filter(l -> !done.contains(l.getId())).findFirst()
                 .map(l -> new LessonRef(l.getId(), l.getTitle())).orElse(null);
         int total = c.lessonCount();
-        return new EnrollmentDto(e.getId(), mapper.summary(c), Codes.of(e.getStatus()), Codes.of(LearningMode.defaultIfNull(e)), e.getEnrolledAt(),
-                percent(done.size(), total), done.size(), total, next);
+        LearningMode mode = LearningMode.defaultIfNull(e);
+        int pct = percent(done.size(), total);
+        return new EnrollmentDto(e.getId(), mapper.summary(c), Codes.of(e.getStatus()), Codes.of(mode), e.getEnrolledAt(),
+                pct, done.size(), total, next, mode == LearningMode.SALLE ? roomFinished(e.getUser(), c) : pct == 100);
+    }
+
+    /** En salle, la formation est terminée une fois l'examen final passé (une seule tentative) ou un certificat obtenu. */
+    private boolean roomFinished(User user, Course course) {
+        boolean certified = certificates.findByUserOrderByIssuedAtDesc(user).stream()
+                .anyMatch(x -> x.getCourse().getId().equals(course.getId()));
+        return certified || exams.findByCourse(course)
+                .map(exam -> attempts.findByExamAndUserOrderByNumberAsc(exam, user).stream()
+                        .anyMatch(a -> a.getStatus() == AttemptStatus.SOUMIS))
+                .orElse(false);
     }
 
     @Transactional(readOnly = true)

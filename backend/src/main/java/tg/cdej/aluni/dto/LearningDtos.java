@@ -20,9 +20,12 @@ public final class LearningDtos {
     public record LessonRef(Long id, String title) {
     }
 
-    /** mode : « salle » (support PDF, quiz et examen programmé) ou « en-ligne » (modules à suivre). */
+    /**
+     * mode : « salle » (support PDF, quiz et examen programmé) ou « en-ligne » (modules à suivre).
+     * finished : formation terminée — en ligne, toutes les leçons suivies ; en salle, examen final passé ou certificat obtenu.
+     */
     public record EnrollmentDto(Long id, CourseSummary course, String status, String mode, Instant enrolledAt, int progress,
-            int completedLessons, int totalLessons, LessonRef nextLesson) {
+            int completedLessons, int totalLessons, LessonRef nextLesson, boolean finished) {
     }
 
     public record LearnLesson(Long id, String title, String type, String duration, String content, String videoUrl,

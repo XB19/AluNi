@@ -7,7 +7,7 @@ import { COURSE_STATUS, LEARNING_MODES, PROFILE_LABELS, QUESTION_TYPES, formatDa
 import { api, qs } from '../../api/client'
 import { useApi } from '../../api/useApi'
 import { CourseCover } from '../../components/CourseCard'
-import { Async, Badge, Button, cx, EmptyState, Field, FormError, Modal, PageHeader, ProgressBar, StatCard, Toast } from '../../components/ui'
+import { Async, Badge, Button, cx, EmptyState, Field, FormError, Modal, PageHeader, Paginated, ProgressBar, StatCard, Toast } from '../../components/ui'
 import { ImportQuestionsModal } from './ImportModals'
 
 export function StatusBadge({ status }) {
@@ -102,8 +102,9 @@ export function TrainerCourses() {
       <PageHeader title="Mes formations" subtitle="Créez, modifiez et publiez vos formations : elles sont visibles dès leur publication." actions={<Button to="/formateur/formations/nouvelle"><Plus className="size-4" />Nouvelle formation</Button>} />
       <Async state={state}>
         {(courses) => (
+          <Paginated items={courses} pageSize={8}>{(page) => (
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {courses.map((c) => (
+            {page.map((c) => (
               <div key={c.id} className="card overflow-hidden">
                 <CourseCover course={c} className="aspect-[16/8]" />
                 <div className="p-5">
@@ -122,6 +123,7 @@ export function TrainerCourses() {
               <span className="mt-2 font-semibold">Créer une formation</span>
             </Link>
           </div>
+          )}</Paginated>
         )}
       </Async>
     </>
@@ -250,8 +252,9 @@ export function QuestionBank() {
       <Async state={state}>
         {(list) =>
           list.length ? (
+            <Paginated items={list} resetKey={[course, type, q].join('|')}>{(page) => (
             <div className="card divide-y divide-gray-100">
-              {list.map((x) => (
+              {page.map((x) => (
                 <div key={x.id} className="flex items-start gap-4 p-4">
                   <Library className="mt-0.5 size-5 shrink-0 text-gray-400" />
                   <div className="min-w-0 flex-1">
@@ -272,6 +275,7 @@ export function QuestionBank() {
                 </div>
               ))}
             </div>
+            )}</Paginated>
           ) : (
             <EmptyState icon={Library} title="Aucune question" text="Ajoutez des questions pour composer vos examens." />
           )
@@ -327,13 +331,14 @@ export function TrainerLearners() {
       <Async state={state}>
         {(list) =>
           list.length ? (
+            <Paginated items={list} resetKey={course}>{(page) => (
             <div className="card overflow-x-auto">
               <table className="w-full min-w-[880px] text-left text-sm">
                 <thead className="border-b border-gray-200 bg-gray-50 text-gray-600">
                   <tr><th className="px-4 py-3 font-semibold">Apprenant</th><th className="font-semibold">Formation</th><th className="font-semibold">Modalité</th><th className="w-44 font-semibold">Progression</th><th className="font-semibold">Note</th><th className="font-semibold">Tentatives</th><th className="pr-4 font-semibold">Alertes</th></tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {list.map((l) => (
+                  {page.map((l) => (
                     <tr key={`${l.id}-${l.course.id}`}>
                       <td className="px-4 py-3"><p className="font-semibold">{l.name}</p><p className="text-xs text-gray-500">{PROFILE_LABELS[l.profile]}{l.status === 'en-attente' ? ' · inscription en attente' : l.status === 'suspendu' ? ' · compte suspendu' : ''}</p></td>
                       <td className="text-gray-700">{l.course.title}</td>
@@ -352,6 +357,7 @@ export function TrainerLearners() {
                 </tbody>
               </table>
             </div>
+            )}</Paginated>
           ) : (
             <EmptyState icon={Users} title="Aucun apprenant pour le moment" />
           )

@@ -5,7 +5,7 @@ import { CERT_TYPES, formatDate } from '../../data/constants'
 import { api } from '../../api/client'
 import { useApi } from '../../api/useApi'
 import Certificate from '../../components/Certificate'
-import { Async, Badge, Button, EmptyState, FormError, PageHeader, Toast } from '../../components/ui'
+import { Async, Badge, Button, EmptyState, FormError, PageHeader, Paginated, Toast } from '../../components/ui'
 
 const STATUS = { valide: ['green', 'Valide'], revoque: ['red', 'Révoqué'], 'en-attente': ['amber', 'En attente de validation'] }
 
@@ -17,8 +17,9 @@ export function MyCertificates() {
       <Async state={state}>
         {(certificates) =>
           certificates.length ? (
+            <Paginated items={certificates} pageSize={6}>{(page) => (
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {certificates.map((c) => (
+              {page.map((c) => (
                 <div key={c.code} className="card overflow-hidden">
                   <Link to={`/apprenant/certificats/${c.code}`} className="block bg-gray-100 p-4">
                     <Certificate cert={c} className="pointer-events-none" />
@@ -35,6 +36,7 @@ export function MyCertificates() {
                 </div>
               ))}
             </div>
+            )}</Paginated>
           ) : (
             <EmptyState icon={Award} title="Pas encore de certificat" text="Terminez une formation ou réussissez un examen final pour obtenir votre certificat." action={<Button to="/apprenant/formations">Mes formations</Button>} />
           )

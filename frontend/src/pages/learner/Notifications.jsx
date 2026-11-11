@@ -3,7 +3,7 @@ import { Award, Bell, BookOpen, CheckCheck, ClipboardCheck, UserCheck } from 'lu
 import { formatDate } from '../../data/constants'
 import { api } from '../../api/client'
 import { useApi } from '../../api/useApi'
-import { Async, Button, cx, EmptyState, PageHeader } from '../../components/ui'
+import { Async, Button, cx, EmptyState, PageHeader, Paginated } from '../../components/ui'
 
 const ICONS = {
   exam: [ClipboardCheck, 'bg-flame-50 text-flame-600'],
@@ -35,8 +35,9 @@ export default function Notifications() {
       <Async state={state}>
         {(items) =>
           items.length ? (
+            <Paginated items={items}>{(page) => (
             <div className="card divide-y divide-gray-100">
-              {items.map((n) => {
+              {page.map((n) => {
                 const [Icon, tone] = ICONS[n.type] ?? ICONS.account
                 const content = (
                   <>
@@ -56,6 +57,7 @@ export default function Notifications() {
                 )
               })}
             </div>
+            )}</Paginated>
           ) : (
             <EmptyState icon={Bell} title="Aucune notification" text="Vous serez prévenu ici des nouvelles leçons, examens et certificats." />
           )

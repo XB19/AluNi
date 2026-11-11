@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { BookOpen } from 'lucide-react'
 import { useApi } from '../../api/useApi'
 import { CourseCard, CourseCover } from '../../components/CourseCard'
-import { Async, Badge, Button, EmptyState, PageHeader, Tabs } from '../../components/ui'
+import { Async, Badge, Button, EmptyState, PageHeader, Paginated, Tabs } from '../../components/ui'
 
 export default function MyCourses() {
   const state = useApi('/me/enrollments')
@@ -15,8 +15,8 @@ export default function MyCourses() {
       <Async state={state}>
         {(enrollments) => {
           const groups = {
-            cours: enrollments.filter((e) => e.status === 'actif' && e.progress < 100),
-            terminees: enrollments.filter((e) => e.status === 'actif' && e.progress === 100),
+            cours: enrollments.filter((e) => e.status === 'actif' && !e.finished),
+            terminees: enrollments.filter((e) => e.status === 'actif' && e.finished),
             attente: enrollments.filter((e) => e.status === 'en-attente'),
           }
           const list = groups[tab]
@@ -37,8 +37,9 @@ export default function MyCourses() {
                   text={tab === 'attente' ? 'Aucune inscription en attente de validation.' : 'Inscrivez-vous à une formation pour commencer.'}
                   action={<Button to="/formations">Explorer le catalogue</Button>} />
               ) : tab === 'attente' ? (
+                <Paginated items={list} resetKey={tab}>{(page) => (
                 <div className="space-y-3">
-                  {list.map((e) => (
+                  {page.map((e) => (
                     <Link key={e.id} to={`/formations/${e.course.slug}`} className="card flex items-center gap-4 p-4">
                       <CourseCover course={e.course} className="size-16 shrink-0 rounded-xl" iconSize="size-7" />
                       <div className="min-w-0 flex-1">
@@ -49,10 +50,13 @@ export default function MyCourses() {
                     </Link>
                   ))}
                 </div>
+                )}</Paginated>
               ) : (
+                <Paginated items={list} pageSize={9} resetKey={tab}>{(page) => (
                 <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                  {list.map((e) => <CourseCard key={e.id} course={e.course} progress={e.mode === 'salle' ? undefined : e.progress} to={`/apprendre/${e.course.slug}`} />)}
+                  {page.map((e) => <CourseCard key={e.id} course={e.course} progress={e.mode === 'salle' ? undefined : e.progress} to={`/apprendre/${e.course.slug}`} />)}
                 </div>
+                )}</Paginated>
               )}
             </>
           )

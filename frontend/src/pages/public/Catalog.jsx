@@ -6,7 +6,7 @@ import { CERT_TYPES, LEVELS } from '../../data/constants'
 import { useApi } from '../../api/useApi'
 import { qs } from '../../api/client'
 import { CourseCard } from '../../components/CourseCard'
-import { Button, EmptyState, ErrorState } from '../../components/ui'
+import { Button, EmptyState, ErrorState, Paginated } from '../../components/ui'
 import { CourseGridSkeleton } from '../../components/Motion'
 
 const DURATIONS = [
@@ -138,13 +138,15 @@ export default function Catalog() {
           ) : coursesState.error ? (
             <ErrorState error={coursesState.error} onRetry={coursesState.reload} />
           ) : results.length ? (
+            <Paginated items={results} pageSize={9} resetKey={params.toString() + '|' + sort}>{(page) => (
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-              {results.map((c, i) => (
+              {page.map((c, i) => (
                 <div key={`${params.toString()}-${sort}-${c.slug}`} className="animate-fade-up" style={{ '--delay': `${Math.min(i, 8) * 60}ms` }}>
                   <CourseCard course={c} />
                 </div>
               ))}
             </div>
+            )}</Paginated>
           ) : (
             <EmptyState icon={SearchX} title="Aucune formation trouvée" text="Essayez un autre mot-clé ou retirez quelques filtres."
               action={<Button variant="outline" onClick={() => setParams({})}>Réinitialiser la recherche</Button>} />

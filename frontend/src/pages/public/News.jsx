@@ -3,7 +3,7 @@ import { ArrowLeft, Calendar, Newspaper } from 'lucide-react'
 import { formatDate } from '../../data/constants'
 import { useApi } from '../../api/useApi'
 import { fileUrl } from '../../api/client'
-import { Async, Badge, EmptyState, ErrorState, Loading } from '../../components/ui'
+import { Async, Badge, EmptyState, ErrorState, Loading, Paginated } from '../../components/ui'
 import { NewsCover } from './Home'
 import NotFound from './NotFound'
 
@@ -29,8 +29,9 @@ export function NewsList() {
                     <span className="mt-5 inline-block font-bold text-brand-700">Lire la suite →</span>
                   </div>
                 </Link>
+                <Paginated items={rest} pageSize={6}>{(page) => (
                 <div className="mt-6 grid gap-5 md:grid-cols-2">
-                  {rest.map((n, i) => (
+                  {page.map((n, i) => (
                     <Link key={n.slug} to={`/actualites/${n.slug}`} className="group flex gap-4 rounded-2xl border border-gray-200 p-4 hover:shadow-md">
                       <NewsCover item={{ ...n, category: null }} index={i + 1} className="w-24 shrink-0 rounded-xl sm:w-32" />
                       <div>
@@ -41,6 +42,7 @@ export function NewsList() {
                     </Link>
                   ))}
                 </div>
+                )}</Paginated>
               </>
             )
           }}

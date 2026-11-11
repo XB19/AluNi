@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router'
-import { X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 
 export const cx = (...c) => c.filter(Boolean).join(' ')
 
@@ -291,4 +291,77 @@ export function Async({ state, children, loading }) {
 export function FormError({ error }) {
   if (!error) return null
   return <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700" role="alert">{error.message ?? String(error)}</p>
+}
+
+/** Numéros de page à afficher : 1 … 4 5 6 … 12 */
+function pageNumbers(page, pages) {
+  if (pages <= 7) return Array.from({ length: pages }, (_, i) => i + 1)
+  const out = [1]
+  const from = Math.max(2, Math.min(page - 1, pages - 4))
+  const to = Math.min(pages - 1, Math.max(page + 1, 5))
+  if (from > 2) out.push('…')
+  for (let i = from; i <= to; i++) out.push(i)
+  if (to < pages - 1) out.push('…')
+  out.push(pages)
+  return out
+}
+
+/** Barre de pagination : « 11–20 sur 30 » et boutons de pages. */
+export function Pagination({ page, pages, total, pageSize, onChange, className }) {
+  if (pages <= 1) return null
+  const first = (page - 1) * pageSize + 1
+  const last = Math.min(page * pageSize, total)
+  const btn = 'flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-sm font-semibold transition'
+  return (
+    <nav className={cx('mt-4 flex flex-wrap items-center justify-between gap-3', className)} aria-label="Pagination">
+      <p className="text-sm text-gray-600"><strong className="text-ink">{first}–{last}</strong> sur {total}</p>
+      <div className="flex items-center gap-1">
+        <button onClick={() => onChange(page - 1)} disabled={page === 1} className={cx(btn, 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40')} aria-label="Page précédente">
+          <ChevronLeft className="size-4" />
+        </button>
+        {pageNumbers(page, pages).map((n, i) =>
+          n === '…' ? (
+            <span key={'e' + i} className="px-1 text-gray-400">…</span>
+          ) : (
+            <button key={n} onClick={() => onChange(n)} aria-current={n === page ? 'page' : undefined}
+              className={cx(btn, n === page ? 'bg-brand-600 text-white' : 'text-gray-700 hover:bg-gray-100', Math.abs(n - page) > 1 && n !== 1 && n !== pages && 'hidden sm:flex')}>
+              {n}
+            </button>
+          ),
+        )}
+        <button onClick={() => onChange(page + 1)} disabled={page === pages} className={cx(btn, 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40')} aria-label="Page suivante">
+          <ChevronRight className="size-4" />
+        </button>
+      </div>
+    </nav>
+  )
+}
+
+/**
+ * Découpe une liste en pages : `children(itemsDeLaPage)` puis la barre de pagination.
+ * La page revient à 1 quand `resetKey` change (recherche, filtre, onglet) ; une modification
+ * d'un élément (révocation, statut…) garde la page courante.
+ */
+export function Paginated({ items, pageSize = 10, resetKey = '', children, className }) {
+  const [page, setPage] = useState(1)
+  const [key, setKey] = useState(resetKey)
+  const top = useRef(null)
+  if (key !== resetKey) {
+    setKey(resetKey)
+    setPage(1)
+  }
+  const list = items ?? []
+  const pages = Math.max(1, Math.ceil(list.length / pageSize))
+  const current = Math.min(page, pages)
+  const change = (n) => {
+    setPage(Math.max(1, Math.min(n, pages)))
+    const el = top.current
+    if (el && el.getBoundingClientRect().top < 80) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+  return (
+    <div ref={top} className={cx('min-w-0 scroll-mt-24', className)}>
+      {children(list.slice((current - 1) * pageSize, current * pageSize))}
+      <Pagination page={current} pages={pages} total={list.length} pageSize={pageSize} onChange={change} />
+    </div>
+  )
 }

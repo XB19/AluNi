@@ -11,7 +11,7 @@ import { useSettings } from '../../context/SettingsContext'
 import { CATEGORY_COLORS, CATEGORY_ICON_NAMES, CategoryIcon } from '../../components/CourseCard'
 import { BarList, ColumnChart } from '../../components/Charts'
 import Certificate, { TEMPLATES } from '../../components/Certificate'
-import { Async, Avatar, Badge, Button, cx, EmptyState, Field, FormError, Modal, PageHeader, StatCard, Tabs, Toast } from '../../components/ui'
+import { Async, Avatar, Badge, Button, cx, EmptyState, Field, FormError, Modal, PageHeader, Paginated, StatCard, Tabs, Toast } from '../../components/ui'
 
 const STATUS_TONES = { actif: 'green', 'en-attente': 'amber', suspendu: 'red', refuse: 'gray' }
 
@@ -278,13 +278,14 @@ export function AdminUsers() {
       <Async state={state}>
         {(list) =>
           list.length ? (
+            <Paginated items={list} resetKey={tab + '|' + q}>{(page) => (
             <div className="card overflow-x-auto">
               <table className="w-full min-w-[820px] text-left text-sm">
                 <thead className="border-b border-gray-200 bg-gray-50 text-gray-600">
                   <tr><th className="px-4 py-3 font-semibold">Nom</th><th className="font-semibold">Profil</th><th className="font-semibold">Contact</th><th className="font-semibold">Inscrit le</th><th className="font-semibold">Rôle</th><th className="font-semibold">Statut</th><th className="pr-4 text-right font-semibold">Action</th></tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {list.map((u) => (
+                  {page.map((u) => (
                     <tr key={u.id}>
                       <td className="px-4 py-3"><div className="flex items-center gap-3"><Avatar name={u.name} size="sm" /><div><p className="font-semibold">{u.name}</p><p className="text-xs text-gray-500">{u.center ?? u.speciality}</p></div></div></td>
                       <td>{PROFILE_LABELS[u.profile]}</td>
@@ -306,6 +307,7 @@ export function AdminUsers() {
                 </tbody>
               </table>
             </div>
+            )}</Paginated>
           ) : (
             <EmptyState icon={Users} title="Aucun compte trouvé" />
           )
@@ -350,8 +352,9 @@ export function AdminValidations() {
               { value: 'certificates', label: 'Certificats', count: v.certificates.length },
             ]} />
             {tab === 'trainers' && (v.trainers.length ? (
+              <Paginated items={v.trainers}>{(page) => (
               <div className="card divide-y divide-gray-100">
-                {v.trainers.map((t) => (
+                {page.map((t) => (
                   <div key={t.id} className="flex flex-wrap items-center gap-4 p-4">
                     <Avatar name={t.name} />
                     <div className="min-w-0 flex-1"><p className="font-bold">{t.name}</p><p className="text-sm text-gray-600">{t.speciality} · {[t.email, t.phone].filter(Boolean).join(' · ')}</p><p className="text-xs text-gray-500">Demande du {formatDate(t.date)}</p></div>
@@ -359,10 +362,12 @@ export function AdminValidations() {
                   </div>
                 ))}
               </div>
+              )}</Paginated>
             ) : <EmptyState icon={UserCheck} title="Aucune demande en attente" />)}
             {tab === 'enrollments' && (v.enrollments.length ? (
+              <Paginated items={v.enrollments}>{(page) => (
               <div className="card divide-y divide-gray-100">
-                {v.enrollments.map((e) => (
+                {page.map((e) => (
                   <div key={e.id} className="flex flex-wrap items-center gap-4 p-4">
                     <Avatar name={e.name} />
                     <div className="min-w-0 flex-1"><p className="font-bold">{e.name} <Badge className="ml-1">{PROFILE_LABELS[e.profile]}</Badge></p><p className="text-sm text-gray-600">souhaite suivre « {e.course.title} » · {formatDate(e.date)}</p></div>
@@ -370,10 +375,12 @@ export function AdminValidations() {
                   </div>
                 ))}
               </div>
+              )}</Paginated>
             ) : <EmptyState icon={Users} title="Aucune inscription en attente" />)}
             {tab === 'certificates' && (v.certificates.length ? (
+              <Paginated items={v.certificates}>{(page) => (
               <div className="card divide-y divide-gray-100">
-                {v.certificates.map((c) => (
+                {page.map((c) => (
                   <div key={c.code} className="flex flex-wrap items-center gap-4 p-4">
                     <Award className="size-8 shrink-0 text-gold-500" />
                     <div className="min-w-0 flex-1"><p className="font-bold">{c.name}</p><p className="text-sm text-gray-600">{c.course.title} · {c.score}/100 · {c.code}</p></div>
@@ -381,6 +388,7 @@ export function AdminValidations() {
                   </div>
                 ))}
               </div>
+              )}</Paginated>
             ) : <EmptyState icon={Award} title="Aucun certificat en attente" />)}
           </>
         )}
@@ -455,13 +463,14 @@ export function AdminCourses() {
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <Async state={courses}>
           {(list) => (
+            <Paginated items={list}>{(page) => (
             <section className="card overflow-x-auto">
               <table className="w-full min-w-[680px] text-left text-sm">
                 <thead className="border-b border-gray-200 bg-gray-50 text-gray-600">
                   <tr><th className="px-4 py-3 font-semibold">Formation</th><th className="font-semibold">Formateur</th><th className="font-semibold">Inscrits</th><th className="font-semibold">Statut</th><th className="pr-4 text-right font-semibold">Action</th></tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {list.map((c) => (
+                  {page.map((c) => (
                     <tr key={c.id}>
                       <td className="px-4 py-3"><Link to={`/admin/formations/${c.id}`} className="font-semibold hover:text-brand-700">{c.title}</Link><p className="text-xs text-gray-500">{c.categoryName} · {c.level} · accès {c.access}</p></td>
                       <td>{c.trainer}</td>
@@ -476,6 +485,7 @@ export function AdminCourses() {
                 </tbody>
               </table>
             </section>
+            )}</Paginated>
           )}
         </Async>
         <section className="card self-start p-5">
@@ -572,13 +582,14 @@ export function AdminCertificates() {
           <Async state={state}>
             {(list) =>
               list.length ? (
+                <Paginated items={list} resetKey={q}>{(page) => (
                 <div className="card overflow-x-auto">
                   <table className="w-full min-w-[820px] text-left text-sm">
                     <thead className="border-b border-gray-200 bg-gray-50 text-gray-600">
                       <tr><th className="px-4 py-3 font-semibold">Numéro</th><th className="font-semibold">Titulaire</th><th className="font-semibold">Formation</th><th className="font-semibold">Type</th><th className="font-semibold">Date</th><th className="font-semibold">Statut</th><th className="pr-4" /></tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {list.map((c) => (
+                      {page.map((c) => (
                         <tr key={c.code}>
                           <td className="px-4 py-3 font-mono text-xs font-semibold">{c.code}</td>
                           <td className="font-semibold">{c.name}</td>
@@ -596,6 +607,7 @@ export function AdminCertificates() {
                     </tbody>
                   </table>
                 </div>
+                )}</Paginated>
               ) : (
                 <EmptyState icon={Award} title="Aucun certificat trouvé" />
               )
@@ -676,8 +688,9 @@ function CrudList({ endpoint, title, emptyLabel, render, toForm, fromForm, field
       <Async state={state}>
         {(items) =>
           items.length ? (
+            <Paginated items={items}>{(page) => (
             <div className="card divide-y divide-gray-100">
-              {items.map((item) => (
+              {page.map((item) => (
                 <div key={item.id} className="flex items-center gap-4 p-4">
                   <div className="min-w-0 flex-1">{render(item)}</div>
                   <button onClick={() => { setEditing(toForm(item)); setError(null) }} className="rounded p-1.5 text-gray-400 hover:bg-gray-100" aria-label="Modifier"><Pencil className="size-4" /></button>
@@ -685,6 +698,7 @@ function CrudList({ endpoint, title, emptyLabel, render, toForm, fromForm, field
                 </div>
               ))}
             </div>
+            )}</Paginated>
           ) : (
             <EmptyState icon={Inbox} title={emptyLabel} />
           )
@@ -830,8 +844,9 @@ function MessagesAdmin() {
     <Async state={state}>
       {(list) =>
         list.length ? (
+          <Paginated items={list} pageSize={5}>{(page) => (
           <div className="space-y-3">
-            {list.map((m) => (
+            {page.map((m) => (
               <div key={m.id} className={cx('card p-5', m.handled && 'opacity-60')}>
                 <div className="flex flex-wrap items-start gap-3">
                   <div className="min-w-0 flex-1">
@@ -848,6 +863,7 @@ function MessagesAdmin() {
               </div>
             ))}
           </div>
+          )}</Paginated>
         ) : (
           <EmptyState icon={Inbox} title="Aucun message reçu" />
         )
