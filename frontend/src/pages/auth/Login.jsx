@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router'
 import { Eye, EyeOff } from 'lucide-react'
 import { HOME_BY_ROLE, useAuth } from '../../context/AuthContext'
 import { Button, cx, Field, FormError } from '../../components/ui'
 import AuthLayout from './AuthLayout'
 
-export default function Login() {
+function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -77,4 +77,11 @@ export default function Login() {
       </p>
     </AuthLayout>
   )
+}
+
+/** Déjà connecté : pas de formulaire de connexion ou d'inscription, direction l'espace personnel. */
+export default function Login() {
+  const { user } = useAuth()
+  const [already] = useState(user)
+  return already ? <Navigate to={HOME_BY_ROLE[already.role]} replace /> : <LoginPage />
 }

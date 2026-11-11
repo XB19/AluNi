@@ -145,7 +145,9 @@ function Header({ categories }) {
         <div className="container-page flex h-9 items-center justify-between">
           <div className="flex items-center gap-5">
             <span className="font-semibold text-white">Pour les apprenants</span>
-            <Link to="/inscription?role=formateur" className="hover:text-white">Pour les formateurs</Link>
+            {(!user || user.role === 'formateur') && (
+              <Link to={user ? '/formateur' : '/inscription?role=formateur'} className="hover:text-white">Pour les formateurs</Link>
+            )}
             <Link to="/a-propos" className="hover:text-white">CDEJ {academy.code}</Link>
           </div>
           <div className="flex items-center gap-5">
@@ -232,6 +234,7 @@ function Header({ categories }) {
 }
 
 function Footer({ categories }) {
+  const { user } = useAuth()
   const academy = useAcademy()
   const socials = [
     { Icon: FacebookIcon, label: 'Facebook', href: academy.facebook },
@@ -268,7 +271,7 @@ function Footer({ categories }) {
             <li><Link to="/a-propos" className="hover:text-white">À propos</Link></li>
             <li><Link to="/actualites" className="hover:text-white">Actualités & événements</Link></li>
             <li><Link to="/verifier" className="hover:text-white">Vérifier un certificat</Link></li>
-            <li><Link to="/inscription?role=formateur" className="hover:text-white">Devenir formateur</Link></li>
+            {!user && <li><Link to="/inscription?role=formateur" className="hover:text-white">Devenir formateur</Link></li>}
             <li><Link to="/faq" className="hover:text-white">Questions fréquentes</Link></li>
             <li><Link to="/contact" className="hover:text-white">Contact</Link></li>
           </ul>

@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router'
 import { ArrowLeft, Building2, Check, CheckCircle2, Clock, GraduationCap, Heart, User } from 'lucide-react'
-import { useAuth } from '../../context/AuthContext'
+import { HOME_BY_ROLE, useAuth } from '../../context/AuthContext'
 import { useAcademy } from '../../context/SettingsContext'
 import { Button, cx, Field, FormError } from '../../components/ui'
 import AuthLayout from './AuthLayout'
@@ -18,7 +18,7 @@ function strength(pw) {
 // Champs vérifiés à chaque étape (pour revenir à la bonne étape en cas d'erreur serveur)
 const STEP_FIELDS = [['profile', 'center', 'speciality'], ['lastName', 'firstName', 'birthDate', 'gender', 'phone', 'email'], ['password']]
 
-export default function Register() {
+function RegisterPage() {
   const [params] = useSearchParams()
   const academy = useAcademy()
   const { register } = useAuth()
@@ -211,4 +211,11 @@ export default function Register() {
       </p>
     </AuthLayout>
   )
+}
+
+/** Déjà connecté : pas de formulaire de connexion ou d'inscription, direction l'espace personnel. */
+export default function Register() {
+  const { user } = useAuth()
+  const [already] = useState(user)
+  return already ? <Navigate to={HOME_BY_ROLE[already.role]} replace /> : <RegisterPage />
 }

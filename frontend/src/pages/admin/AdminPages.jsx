@@ -10,7 +10,7 @@ import { useApi } from '../../api/useApi'
 import { useSettings } from '../../context/SettingsContext'
 import { CATEGORY_COLORS, CATEGORY_ICON_NAMES, CategoryIcon } from '../../components/CourseCard'
 import { BarList, ColumnChart } from '../../components/Charts'
-import Certificate, { TEMPLATES } from '../../components/Certificate'
+import Certificate, { TEMPLATES, templateSwatch } from '../../components/Certificate'
 import { Async, Avatar, Badge, Button, cx, EmptyState, Field, FormError, Modal, PageHeader, Paginated, StatCard, Tabs, Toast } from '../../components/ui'
 
 const STATUS_TONES = { actif: 'green', 'en-attente': 'amber', suspendu: 'red', refuse: 'gray' }
@@ -531,7 +531,7 @@ function TemplatesTab({ sample }) {
         <div className="space-y-2">
           {Object.entries(TEMPLATES).map(([k, t]) => (
             <button key={k} onClick={() => setF({ ...f, template: k })} className={cx('flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left', f.template === k ? 'border-brand-600 bg-brand-50' : 'border-gray-200')}>
-              <span className="size-6 rounded-full" style={{ background: t.border }} />
+              <span className="h-6 w-10 rounded-md" style={{ background: templateSwatch(t) }} />
               <span className="flex-1 font-semibold">{t.name}</span>
               {f.template === k && <CheckCircle2 className="size-5 text-brand-600" />}
             </button>

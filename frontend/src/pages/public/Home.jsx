@@ -3,16 +3,17 @@ import { Link } from 'react-router'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   ArrowRight, Award, BadgeCheck, BookOpen, Building2, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, GraduationCap, Heart,
-  Laptop, Lightbulb, Quote, ShieldCheck, Smartphone, User, UserPlus, Users, WifiOff,
+  Laptop, Lightbulb, ShieldCheck, Smartphone, User, UserPlus, Users, WifiOff,
 } from 'lucide-react'
 import { TESTIMONIALS, formatDate } from '../../data/constants'
 import { useApi } from '../../api/useApi'
 import { fileUrl } from '../../api/client'
 import { useAcademy, useSettings } from '../../context/SettingsContext'
+import { HOME_BY_ROLE, useAuth } from '../../context/AuthContext'
 import { CategoryIcon, CourseCard } from '../../components/CourseCard'
 import { CountUp, CourseGridSkeleton, Reveal } from '../../components/Motion'
+import Certificate from '../../components/Certificate'
 import { Avatar, Badge, Button, cx, SectionTitle } from '../../components/ui'
-import logo from '../../assets/logo-cdej.jpg'
 import heroJpg from '../../assets/hero-apprenante.jpg'
 import heroJpg720 from '../../assets/hero-apprenante-720.jpg'
 import heroWebp from '../../assets/hero-apprenante.webp'
@@ -41,6 +42,7 @@ function highlight(text) {
 const stagger = (i, step = 90, columns = 4) => (i % columns) * step
 
 function Hero() {
+  const { user } = useAuth()
   const s = useSettings()
   const [first, ...rest] = (s['home.heroTitle'] ?? '').split('. ')
   return (
@@ -62,8 +64,8 @@ function Hero() {
           </h1>
           <p className="animate-fade-up mt-5 max-w-xl text-lg leading-relaxed text-gray-700" style={{ '--delay': '120ms' }}>{s['home.heroSubtitle']}</p>
           <div className="animate-fade-up mt-8 flex flex-col gap-3 sm:flex-row" style={{ '--delay': '240ms' }}>
-            <Button to="/inscription" size="lg" className="shadow-lg shadow-brand-600/20 hover:-translate-y-0.5">
-              Commencer gratuitement <ArrowRight className="arrow-slide size-5" />
+            <Button to={user ? HOME_BY_ROLE[user.role] : '/inscription'} size="lg" className="shadow-lg shadow-brand-600/20 hover:-translate-y-0.5">
+              {!user ? 'Commencer gratuitement' : user.role === 'apprenant' ? 'Continuer mon apprentissage' : 'Aller à mon espace'} <ArrowRight className="arrow-slide size-5" />
             </Button>
             <Button to="/formations" size="lg" variant="outline-gray" className="hover:-translate-y-0.5">Voir les formations</Button>
           </div>
@@ -242,11 +244,16 @@ function HowItWorks() {
 }
 
 function Audiences() {
+  const { user } = useAuth()
+  // Connecté : plus d'invitation à créer un compte, on mène aux formations (ou à l'espace formateur)
+  const learnerTo = user ? '/formations' : '/inscription'
+  const trainerTo = !user ? '/inscription?role=formateur' : user.role === 'formateur' ? '/formateur' : '/contact'
   const items = [
-    { icon: Heart, title: 'Jeunes du CDEJ', text: 'Accès aux formations du programme du centre, en salle et en ligne.', to: '/inscription' },
-    { icon: Building2, title: 'Jeunes des autres CDEJ', text: "Formez-vous à distance et venez passer vos examens supervisés à l'Académie.", to: '/inscription' },
-    { icon: User, title: 'Particuliers', text: 'Développez vos compétences ou faites certifier ce que vous savez déjà faire.', to: '/inscription' },
-    { icon: GraduationCap, title: 'Formateurs', text: 'Partagez votre savoir : publiez vos cours et accompagnez les apprenants.', to: '/inscription?role=formateur' },
+    { icon: Heart, title: 'Jeunes du CDEJ', text: 'Accès aux formations du programme du centre, en salle et en ligne.', to: learnerTo, cta: user ? 'Voir les formations' : 'Commencer' },
+    { icon: Building2, title: 'Jeunes des autres CDEJ', text: "Formez-vous à distance et venez passer vos examens supervisés à l'Académie.", to: learnerTo, cta: user ? 'Voir les formations' : 'Commencer' },
+    { icon: User, title: 'Particuliers', text: 'Développez vos compétences ou faites certifier ce que vous savez déjà faire.', to: learnerTo, cta: user ? 'Voir les formations' : 'Commencer' },
+    { icon: GraduationCap, title: 'Formateurs', text: 'Partagez votre savoir : publiez vos cours et accompagnez les apprenants.', to: trainerTo,
+      cta: !user ? 'Commencer' : user.role === 'formateur' ? 'Mon espace formateur' : "Nous contacter" },
   ]
   return (
     <section className="relative overflow-hidden bg-brand-900 py-16 text-white">
@@ -264,7 +271,7 @@ function Audiences() {
                 <h3 className="mt-4 text-lg font-bold">{it.title}</h3>
                 <p className="mt-1.5 flex-1 text-sm leading-relaxed text-brand-100">{it.text}</p>
                 <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-white">
-                  Commencer <ArrowRight className="arrow-slide size-4" />
+                  {it.cta} <ArrowRight className="arrow-slide size-4" />
                 </span>
               </Link>
             </Reveal>
@@ -276,23 +283,26 @@ function Audiences() {
 }
 
 function Certification() {
+  const s = useSettings()
+  const sampleCert = {
+    code: 'ALUNI-2026-000148',
+    name: 'Essi AGBEKO',
+    course: { title: "Initiation à l'informatique" },
+    type: 'competence',
+    status: 'valide',
+    date: '2026-10-05',
+    template: s['certificate.template'],
+    signatory: s['certificate.signatory'] || 'Le Coordinateur',
+    signatoryTitle: s['certificate.signatoryTitle'] || "Responsable de l'Académie",
+    signature: '3F9A2C71',
+    verifyUrl: `${window.location.origin}/verifier/ALUNI-2026-000148`,
+  }
   return (
     <section className="container-page grid items-center gap-12 py-16 lg:grid-cols-2">
       <Reveal className="order-2 lg:order-1">
-        {/* Aperçu de certificat */}
-        <div className="relative mx-auto max-w-lg rotate-[-2deg] rounded-2xl border-[6px] border-gold-400 bg-white p-6 shadow-2xl transition duration-500 hover:rotate-0 hover:shadow-gold-400/30 sm:p-8">
-          <div className="flex items-center justify-between">
-            <img src={logo} alt="" className="size-12 object-contain" />
-            <span className="text-right text-xs font-bold text-brand-700">ALuNI<br /><span className="font-medium text-gray-500">CDEJ TG0157</span></span>
-          </div>
-          <p className="mt-5 text-center text-xs font-bold tracking-[0.3em] text-gold-700 uppercase">Certificat de compétence</p>
-          <p className="mt-3 text-center text-sm text-gray-500">décerné à</p>
-          <p className="mt-1 text-center text-2xl font-extrabold text-brand-800">Essi AGBEKO</p>
-          <p className="mt-2 text-center text-sm text-gray-600">pour la réussite de la formation <strong>Initiation à l'informatique</strong></p>
-          <div className="mt-6 flex items-end justify-between">
-            <div className="text-xs text-gray-500">N° ALUNI-2026-000148<br />Mention : Très bien</div>
-            <QRCodeSVG value={`${window.location.origin}/verifier/ALUNI-2026-000148`} size={56} fgColor="#16592b" />
-          </div>
+        {/* Aperçu de certificat : le vrai modèle, avec le modèle de couleurs et le signataire choisis par l'administrateur */}
+        <div className="mx-auto max-w-xl rotate-[-2deg] transition duration-500 hover:rotate-0">
+          <Certificate cert={sampleCert} className="rounded-xl shadow-2xl" />
         </div>
       </Reveal>
       <Reveal className="order-1 lg:order-2" delay={120}>
@@ -353,114 +363,120 @@ function Vision() {
   )
 }
 
-const AUTOPLAY_MS = 4000
+const AUTOPLAY_MS = 6000
+const PORTRAIT_TONES = [
+  'from-brand-600 to-brand-800',
+  'from-flame-500 to-flame-600',
+  'from-brand-700 to-flame-500',
+  'from-gold-500 to-flame-500',
+  'from-brand-500 to-brand-700',
+  'from-flame-600 to-brand-700',
+]
+const initials = (name) => name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()
+
+/** Portrait du témoin : sa photo si elle existe, sinon un portrait aux initiales. */
+function TestimonialPortrait({ t, index }) {
+  if (t.photo) return <img src={t.photo} alt={t.name} loading="lazy" className="size-full object-cover" />
+  return (
+    <div className={cx('relative flex size-full items-center justify-center overflow-hidden bg-gradient-to-br text-white', PORTRAIT_TONES[index % PORTRAIT_TONES.length])}>
+      <span className="pointer-events-none absolute -top-10 -right-10 size-40 rounded-full bg-white/10" />
+      <span className="pointer-events-none absolute -bottom-14 -left-8 size-48 rounded-full bg-black/10" />
+      <span className="relative text-6xl font-extrabold tracking-tight sm:text-7xl">{initials(t.name)}</span>
+    </div>
+  )
+}
 
 function Testimonials() {
-  const track = useRef(null)
+  const count = TESTIMONIALS.length
+  const [index, setIndex] = useState(0)
   const [paused, setPaused] = useState(false)
-  const [active, setActive] = useState(0)
-  const [pages, setPages] = useState(1)
+  const touch = useRef(null)
 
-  // Nombre de cartes visibles et page courante, recalculés au défilement et au redimensionnement
-  const measure = useCallback(() => {
-    const el = track.current
-    if (!el?.firstElementChild) return
-    const step = el.firstElementChild.getBoundingClientRect().width + 20
-    const perView = Math.max(1, Math.round(el.clientWidth / step))
-    setPages(Math.max(1, TESTIMONIALS.length - perView + 1))
-    setActive(Math.round(el.scrollLeft / step))
-  }, [])
+  const go = useCallback((i) => setIndex(((i % count) + count) % count), [count])
 
-  useEffect(() => {
-    measure()
-    window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
-  }, [measure])
-
-  const goTo = useCallback((index) => {
-    const el = track.current
-    if (!el?.firstElementChild) return
-    const step = el.firstElementChild.getBoundingClientRect().width + 20
-    const perView = Math.max(1, Math.round(el.clientWidth / step))
-    const last = Math.max(0, TESTIMONIALS.length - perView)
-    const target = index > last ? 0 : index < 0 ? last : index
-    el.scrollTo({ left: target * step, behavior: 'smooth' })
-  }, [])
-
-  // Défilement automatique en continu : pause seulement pendant le survol ou le toucher, reprise ensuite
+  // Défilement automatique ; pause au survol, au focus clavier et quand l'onglet est caché
   useEffect(() => {
     if (paused) return
-    const id = setInterval(() => !document.hidden && goTo(active + 1), AUTOPLAY_MS)
-    return () => clearInterval(id)
-  }, [paused, active, goTo])
+    const id = setTimeout(() => !document.hidden && go(index + 1), AUTOPLAY_MS)
+    return () => clearTimeout(id)
+  }, [index, paused, go])
 
-  const resume = useRef(null)
-  const holdOnTouch = () => {
-    setPaused(true)
-    clearTimeout(resume.current)
+  // Glisser du doigt sur mobile
+  const onTouchStart = (e) => { touch.current = e.touches[0].clientX; setPaused(true) }
+  const onTouchEnd = (e) => {
+    const dx = e.changedTouches[0].clientX - (touch.current ?? 0)
+    if (Math.abs(dx) > 40) go(index + (dx < 0 ? 1 : -1))
+    touch.current = null
+    setPaused(false)
   }
-  const releaseTouch = () => {
-    clearTimeout(resume.current)
-    resume.current = setTimeout(() => setPaused(false), 3000)
-  }
-  useEffect(() => () => clearTimeout(resume.current), [])
 
-  const arrow = 'flex size-11 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 active:scale-95'
+  const arrow = 'flex size-12 items-center justify-center rounded-xl border border-white/80 bg-white text-brand-800 shadow-lg transition hover:bg-brand-50 active:scale-95 focus-visible:outline-2 focus-visible:outline-flame-400'
 
   return (
-    <section className="container-page py-16" aria-roledescription="carrousel" aria-label="Témoignages">
-      <Reveal className="relative">
-        <SectionTitle center eyebrow="Témoignages" title="Ils ont appris avec ALuNI" />
-        <div className="absolute right-0 bottom-8 hidden gap-2 md:flex">
-          <button type="button" onClick={() => goTo(active - 1)} className={arrow} aria-label="Témoignage précédent"><ChevronLeft className="size-5" /></button>
-          <button type="button" onClick={() => goTo(active + 1)} className={arrow} aria-label="Témoignage suivant"><ChevronRight className="size-5" /></button>
-        </div>
-      </Reveal>
+    <section className="bg-brand-900 py-16" aria-roledescription="carrousel" aria-label="Témoignages">
+      <div className="container-page">
+        <Reveal className="mb-10 text-center">
+          <p className="mb-2 text-sm font-bold tracking-wide text-flame-400 uppercase">Témoignages</p>
+          <h2 className="text-2xl font-extrabold text-white sm:text-3xl">Ils ont appris avec ALuNI</h2>
+        </Reveal>
 
-      <div
-        className="relative"
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
-        onTouchStart={holdOnTouch}
-        onTouchEnd={releaseTouch}
-      >
-        <div ref={track} onScroll={measure} className="no-scrollbar -my-2 flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth py-2">
-          {TESTIMONIALS.map((t, i) => (
-            <figure
-              key={t.name}
-              aria-roledescription="diapositive"
-              aria-label={`${i + 1} sur ${TESTIMONIALS.length}`}
-              className="flex w-[85%] shrink-0 snap-start flex-col rounded-2xl border border-gray-200 bg-white p-6 transition duration-300 hover:border-brand-200 hover:shadow-lg sm:w-[calc((100%-20px)/2)] lg:w-[calc((100%-40px)/3)]"
-            >
-              <Quote className="size-8 text-brand-200" />
-              <blockquote className="mt-3 flex-1 leading-relaxed text-gray-700">« {t.text} »</blockquote>
-              <figcaption className="mt-5 flex items-center gap-3 border-t border-gray-100 pt-4">
-                <Avatar name={t.name} />
-                <div>
-                  <p className="font-bold">{t.name}</p>
-                  <p className="text-sm text-gray-500">{t.role}</p>
-                </div>
-              </figcaption>
-            </figure>
-          ))}
-        </div>
-      </div>
+        <div
+          className="relative"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+          onFocus={() => setPaused(true)}
+          onBlur={() => setPaused(false)}
+          onKeyDown={(e) => { if (e.key === 'ArrowLeft') go(index - 1); if (e.key === 'ArrowRight') go(index + 1) }}
+        >
+          <div className="overflow-hidden rounded-2xl bg-white shadow-2xl shadow-black/20" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+            <div className="flex transition-transform duration-700 ease-[cubic-bezier(.22,.61,.36,1)] motion-reduce:transition-none" style={{ transform: `translateX(-${index * 100}%)` }}>
+              {TESTIMONIALS.map((t, i) => (
+                <figure
+                  key={t.name}
+                  aria-roledescription="diapositive"
+                  aria-label={`${i + 1} sur ${count}`}
+                  aria-hidden={i !== index}
+                  className="grid w-full shrink-0 items-center gap-6 p-5 sm:p-8 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:gap-12 md:px-16 md:py-10 lg:px-24"
+                >
+                  <div className="mx-auto aspect-square w-full max-w-[220px] overflow-hidden rounded-2xl md:max-w-[360px]">
+                    <TestimonialPortrait t={t} index={i} />
+                  </div>
+                  <div className="flex gap-3 sm:gap-5">
+                    <span className="-mt-2 shrink-0 font-serif text-6xl leading-none font-bold text-brand-800 select-none sm:text-7xl" aria-hidden>“</span>
+                    <div className="min-w-0">
+                      <blockquote className="text-lg leading-relaxed text-ink sm:text-xl md:text-2xl md:leading-snug">{t.text}</blockquote>
+                      <figcaption className="mt-6 sm:mt-10">
+                        <p className="font-bold text-ink">{t.name}</p>
+                        <p className="mt-0.5 text-sm text-gray-600">{t.role}</p>
+                      </figcaption>
+                    </div>
+                  </div>
+                </figure>
+              ))}
+            </div>
+          </div>
 
-      <div className="mt-6 flex items-center justify-center gap-4">
-        <button type="button" onClick={() => goTo(active - 1)} className={cx(arrow, 'md:hidden')} aria-label="Témoignage précédent"><ChevronLeft className="size-5" /></button>
-        <div className="flex gap-2">
-          {Array.from({ length: pages }, (_, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => goTo(i)}
-              aria-label={`Aller au témoignage ${i + 1}`}
-              aria-current={i === active}
-              className={cx('h-2.5 rounded-full transition-all duration-300', i === active ? 'w-7 bg-brand-600' : 'w-2.5 bg-gray-300 hover:bg-gray-400')}
-            />
-          ))}
+          {/* Flèches sur les bords de la carte (écrans moyens et grands) */}
+          <button type="button" onClick={() => go(index - 1)} className={cx(arrow, 'absolute top-1/2 left-0 hidden -translate-x-1/2 -translate-y-1/2 md:flex')} aria-label="Témoignage précédent"><ChevronLeft className="size-5" /></button>
+          <button type="button" onClick={() => go(index + 1)} className={cx(arrow, 'absolute top-1/2 right-0 hidden translate-x-1/2 -translate-y-1/2 md:flex')} aria-label="Témoignage suivant"><ChevronRight className="size-5" /></button>
         </div>
-        <button type="button" onClick={() => goTo(active + 1)} className={cx(arrow, 'md:hidden')} aria-label="Témoignage suivant"><ChevronRight className="size-5" /></button>
+
+        <div className="mt-6 flex items-center justify-center gap-4">
+          <button type="button" onClick={() => go(index - 1)} className={cx(arrow, 'size-10 md:hidden')} aria-label="Témoignage précédent"><ChevronLeft className="size-5" /></button>
+          <div className="flex items-center gap-2.5">
+            {TESTIMONIALS.map((t, i) => (
+              <button
+                key={t.name}
+                type="button"
+                onClick={() => go(i)}
+                aria-label={`Témoignage ${i + 1} : ${t.name}`}
+                aria-current={i === index}
+                className={cx('h-3 rounded-full transition-all duration-500', i === index ? 'w-8 bg-flame-500' : 'w-3 bg-white/80 hover:bg-white')}
+              />
+            ))}
+          </div>
+          <button type="button" onClick={() => go(index + 1)} className={cx(arrow, 'size-10 md:hidden')} aria-label="Témoignage suivant"><ChevronRight className="size-5" /></button>
+        </div>
       </div>
     </section>
   )
@@ -536,15 +552,24 @@ function Partners({ partners }) {
 }
 
 function FinalCta() {
+  const { user } = useAuth()
   return (
     <section className="container-page pb-16">
       <Reveal className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-700 to-brand-600 px-6 py-12 text-center text-white sm:px-12">
         <div className="animate-float pointer-events-none absolute -top-16 -right-10 size-56 rounded-full bg-flame-500/30 blur-2xl" />
         <div className="animate-float pointer-events-none absolute -bottom-20 -left-10 size-56 rounded-full bg-white/10 blur-2xl" style={{ '--delay': '2s' }} />
-        <h2 className="relative text-2xl font-extrabold sm:text-4xl">Prêt à allumer votre avenir numérique ?</h2>
-        <p className="relative mx-auto mt-3 max-w-xl text-brand-100">Créez votre compte gratuitement et commencez votre première formation dès aujourd'hui.</p>
+        <h2 className="relative text-2xl font-extrabold sm:text-4xl">{user ? `Bon retour, ${user.firstName ?? user.name?.split(' ')[0] ?? ''} !` : 'Prêt à allumer votre avenir numérique ?'}</h2>
+        <p className="relative mx-auto mt-3 max-w-xl text-brand-100">
+          {!user ? "Créez votre compte gratuitement et commencez votre première formation dès aujourd'hui."
+            : user.role === 'apprenant' ? 'Retrouvez vos formations, vos examens et vos certificats dans votre espace.'
+            : 'Retrouvez vos outils de gestion dans votre espace.'}
+        </p>
         <div className="relative mt-7 flex flex-col justify-center gap-3 sm:flex-row">
-          <Button to="/inscription" variant="white" size="lg" className="hover:-translate-y-0.5">Créer mon compte <ArrowRight className="arrow-slide size-5" /></Button>
+          {user ? (
+            <Button to={HOME_BY_ROLE[user.role]} variant="white" size="lg" className="hover:-translate-y-0.5">Aller à mon espace <ArrowRight className="arrow-slide size-5" /></Button>
+          ) : (
+            <Button to="/inscription" variant="white" size="lg" className="hover:-translate-y-0.5">Créer mon compte <ArrowRight className="arrow-slide size-5" /></Button>
+          )}
           <Button to="/contact" size="lg" className="bg-white/10 ring-1 ring-white/30 hover:-translate-y-0.5 hover:bg-white/20">Nous contacter</Button>
         </div>
       </Reveal>

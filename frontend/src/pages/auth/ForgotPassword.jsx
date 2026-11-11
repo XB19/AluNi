@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, Navigate } from 'react-router'
+import { HOME_BY_ROLE, useAuth } from '../../context/AuthContext'
 import { CheckCircle2, Mail, MessageSquare } from 'lucide-react'
 import { api } from '../../api/client'
 import { Button, cx, Field, FormError } from '../../components/ui'
 import AuthLayout from './AuthLayout'
 
-export default function ForgotPassword() {
+function ForgotPasswordPage() {
   const [step, setStep] = useState(0)
   const [channel, setChannel] = useState('sms')
   const [identifier, setIdentifier] = useState('')
@@ -95,4 +96,11 @@ export default function ForgotPassword() {
       {step < 3 && <p className="mt-6 text-center text-sm"><Link to="/connexion" className="font-semibold text-brand-700 hover:underline">← Retour à la connexion</Link></p>}
     </AuthLayout>
   )
+}
+
+/** Déjà connecté : pas de formulaire de connexion ou d'inscription, direction l'espace personnel. */
+export default function ForgotPassword() {
+  const { user } = useAuth()
+  const [already] = useState(user)
+  return already ? <Navigate to={HOME_BY_ROLE[already.role]} replace /> : <ForgotPasswordPage />
 }
