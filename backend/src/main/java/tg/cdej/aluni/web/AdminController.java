@@ -100,6 +100,12 @@ public class AdminController {
         return admin.createUser(body);
     }
 
+    /** Mot de passe provisoire pour un utilisateur qui ne peut pas utiliser la récupération par code. */
+    @PostMapping("/users/{id}/reset-password")
+    public CreatedAccount resetPassword(@PathVariable Long id) {
+        return admin.resetPassword(current.get(), id);
+    }
+
     @PatchMapping("/users/{id}")
     public AdminUserDto patchUser(@PathVariable Long id, @RequestBody AdminUserPatch body) {
         return admin.patchUser(current.get(), id, body);

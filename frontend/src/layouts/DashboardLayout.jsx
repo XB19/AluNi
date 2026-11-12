@@ -9,6 +9,7 @@ import { api, fileUrl } from '../api/client'
 import { HOME_BY_ROLE, useAuth } from '../context/AuthContext'
 import { Logo } from '../components/CourseCard'
 import { PageLoader } from '../components/PageLoader'
+import Assistant from '../components/Assistant'
 import { Avatar, cx } from '../components/ui'
 
 const NAVS = {
@@ -83,7 +84,7 @@ function SideNav({ role, counters, onNavigate }) {
         >
           <n.icon className="size-5 shrink-0" />
           <span className="flex-1">{n.label}</span>
-          {n.badge && counters[n.badge] > 0 && <span className="rounded-full bg-flame-500 px-2 py-0.5 text-xs font-bold text-white">{counters[n.badge]}</span>}
+          {n.badge && counters[n.badge] > 0 && <span className="rounded-full bg-flame-400 px-2 py-0.5 text-xs font-bold text-ink">{counters[n.badge]}</span>}
         </NavLink>
       ))}
     </nav>
@@ -185,14 +186,15 @@ export default function DashboardLayout({ role }) {
               {role === 'apprenant' && (
                 <Link to="/apprenant/notifications" className="relative rounded-full p-2.5 text-gray-700 hover:bg-gray-100" aria-label={`Notifications (${counters.unread ?? 0} non lues)`}>
                   <Bell className="size-5" />
-                  {counters.unread > 0 && <span className="absolute top-1.5 right-1.5 flex size-4 items-center justify-center rounded-full bg-flame-500 text-[10px] font-bold text-white">{counters.unread}</span>}
+                  {counters.unread > 0 && <span className="absolute top-1.5 right-1.5 flex size-4 items-center justify-center rounded-full bg-flame-400 text-[10px] font-bold text-ink">{counters.unread}</span>}
                 </Link>
               )}
               {user && <UserMenu />}
             </div>
           </header>
 
-          <main className={cx('mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8', role === 'apprenant' && 'pb-28 lg:pb-8')}>
+          {/* Marge basse : la page n'est jamais masquée par le bouton de l'assistant (ni par la navigation mobile) */}
+          <main className={cx('mx-auto max-w-7xl px-4 py-6 pb-24 sm:px-6 lg:px-8 lg:py-8 lg:pb-24', role === 'apprenant' && 'pb-40')}>
             <Suspense fallback={<PageLoader />}>
               <div key={pathname} className="animate-fade-in">
                 <Outlet />
@@ -200,6 +202,8 @@ export default function DashboardLayout({ role }) {
             </Suspense>
           </main>
         </div>
+
+        <Assistant placement={role === 'apprenant' ? 'dashboard' : 'public'} />
 
         {/* Navigation basse (mobile, apprenant) : accès en un geste aux sections clés */}
         {role === 'apprenant' && (

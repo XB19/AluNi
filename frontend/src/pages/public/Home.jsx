@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { QRCodeSVG } from 'qrcode.react'
 import {
-  ArrowRight, Award, BadgeCheck, BookOpen, Building2, CheckCircle2, ChevronLeft, ChevronRight, ClipboardCheck, GraduationCap, Heart,
-  Laptop, Lightbulb, ShieldCheck, Smartphone, User, UserPlus, Users, WifiOff,
+  ArrowRight, Award, BadgeCheck, BookOpen, Building2, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, GraduationCap, Heart, HelpCircle,
+  Laptop, Lightbulb, MessageCircleQuestion, ShieldCheck, Smartphone, User, UserPlus, Users, WifiOff,
 } from 'lucide-react'
 import { TESTIMONIALS, formatDate } from '../../data/constants'
 import { useApi } from '../../api/useApi'
@@ -13,6 +13,7 @@ import { HOME_BY_ROLE, useAuth } from '../../context/AuthContext'
 import { CategoryIcon, CourseCard } from '../../components/CourseCard'
 import { CountUp, CourseGridSkeleton, Reveal } from '../../components/Motion'
 import Certificate from '../../components/Certificate'
+import { openAssistant } from '../../components/Assistant'
 import { Avatar, Badge, Button, cx, SectionTitle } from '../../components/ui'
 import heroJpg from '../../assets/hero-apprenante.jpg'
 import heroJpg720 from '../../assets/hero-apprenante-720.jpg'
@@ -34,7 +35,7 @@ const HIGHLIGHT = /(numériques?|formations?|certifications?|certificats?)/gi
 
 function highlight(text) {
   return text.split(HIGHLIGHT).map((part, i) =>
-    i % 2 === 1 ? <span key={i} className="text-flame-500">{part}</span> : part,
+    i % 2 === 1 ? <span key={i} className="bg-[linear-gradient(transparent_64%,var(--color-flame-400)_64%,var(--color-flame-400)_92%,transparent_92%)] box-decoration-clone">{part}</span> : part,
   )
 }
 
@@ -115,7 +116,7 @@ function Hero() {
           </div>
           <div className="animate-fade-up absolute -top-5 -right-3 sm:-right-8 lg:-right-3 xl:-right-8" style={{ '--delay': '900ms' }}>
             <div className="animate-float flex items-center gap-3 rounded-2xl bg-white p-3 shadow-xl" style={{ '--delay': '1.5s' }}>
-              <QRCodeSVG value={`${window.location.origin}/verifier`} size={44} fgColor="#16592b" />
+              <QRCodeSVG value={`${window.location.origin}/verifier`} size={44} fgColor="#1b335d" />
               <div className="pr-2">
                 <p className="text-xs text-gray-500">Certificat</p>
                 <p className="flex items-center gap-1 text-sm font-bold text-brand-700"><BadgeCheck className="size-4" /> Vérifié</p>
@@ -217,10 +218,10 @@ function PopularCourses({ courses, loading, categories }) {
 
 function HowItWorks() {
   const steps = [
-    { icon: UserPlus, title: 'Créez votre compte', text: 'Avec votre numéro de téléphone ou votre e-mail, en 2 minutes.' },
-    { icon: BookOpen, title: 'Suivez les cours', text: 'Vidéos courtes, textes et exercices, à votre rythme.' },
-    { icon: ClipboardCheck, title: "Passez l'examen", text: 'En ligne ou en salle, avec correction immédiate.' },
-    { icon: Award, title: 'Recevez votre certificat', text: 'Un certificat numérique avec QR code, vérifiable partout.' },
+    { icon: UserPlus, title: 'Créez votre compte', text: 'Gratuitement, avec votre numéro de téléphone ou votre e-mail, en 2 minutes.' },
+    { icon: BookOpen, title: 'Suivez la formation', text: "En ligne à votre rythme, ou en salle à l'Académie avec votre formateur." },
+    { icon: ClipboardCheck, title: "Passez l'examen final", text: 'Corrigé automatiquement : vous connaissez votre résultat tout de suite.' },
+    { icon: Award, title: 'Recevez votre certificat', text: 'À télécharger en PDF, avec un QR code qui le rend vérifiable partout.' },
   ]
   return (
     <section className="container-page py-16">
@@ -247,13 +248,14 @@ function Audiences() {
   const { user } = useAuth()
   // Connecté : plus d'invitation à créer un compte, on mène aux formations (ou à l'espace formateur)
   const learnerTo = user ? '/formations' : '/inscription'
-  const trainerTo = !user ? '/inscription?role=formateur' : user.role === 'formateur' ? '/formateur' : '/contact'
+  // Les comptes formateurs sont créés par l'administration : on passe par le formulaire de contact
+  const trainerTo = user?.role === 'formateur' ? '/formateur' : '/contact?sujet=formateur'
   const items = [
-    { icon: Heart, title: 'Jeunes du CDEJ', text: 'Accès aux formations du programme du centre, en salle et en ligne.', to: learnerTo, cta: user ? 'Voir les formations' : 'Commencer' },
-    { icon: Building2, title: 'Jeunes des autres CDEJ', text: "Formez-vous à distance et venez passer vos examens supervisés à l'Académie.", to: learnerTo, cta: user ? 'Voir les formations' : 'Commencer' },
-    { icon: User, title: 'Particuliers', text: 'Développez vos compétences ou faites certifier ce que vous savez déjà faire.', to: learnerTo, cta: user ? 'Voir les formations' : 'Commencer' },
-    { icon: GraduationCap, title: 'Formateurs', text: 'Partagez votre savoir : publiez vos cours et accompagnez les apprenants.', to: trainerTo,
-      cta: !user ? 'Commencer' : user.role === 'formateur' ? 'Mon espace formateur' : "Nous contacter" },
+    { icon: Heart, title: 'Jeunes du CDEJ Kpévé', text: "Les formations du programme du centre, suivies en salle à l'Académie avec votre formateur.", to: learnerTo, cta: user ? 'Voir les formations' : 'Commencer' },
+    { icon: Building2, title: 'Jeunes des autres CDEJ', text: "Formez-vous en ligne, à votre rythme, et obtenez votre certificat dès l'examen final réussi.", to: learnerTo, cta: user ? 'Voir les formations' : 'Commencer' },
+    { icon: User, title: 'Particuliers', text: 'Développez vos compétences en ligne ou faites certifier ce que vous savez déjà faire.', to: learnerTo, cta: user ? 'Voir les formations' : 'Commencer' },
+    { icon: GraduationCap, title: 'Formateurs', text: "Partagez votre savoir : l'Académie crée votre compte, vous publiez vos cours et accompagnez les apprenants.", to: trainerTo,
+      cta: user?.role === 'formateur' ? 'Mon espace formateur' : 'Nous contacter' },
   ]
   return (
     <section className="relative overflow-hidden bg-brand-900 py-16 text-white">
@@ -307,18 +309,21 @@ function Certification() {
       </Reveal>
       <Reveal className="order-1 lg:order-2" delay={120}>
         <p className="mb-2 text-sm font-bold tracking-wide text-flame-600 uppercase">Certification</p>
-        <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Des certificats infalsifiables, vérifiables en un scan</h2>
-        <p className="mt-4 text-lg text-gray-700">Chaque certificat porte un numéro unique, une signature numérique et un QR code. Un employeur peut confirmer son authenticité en quelques secondes.</p>
+        <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Des certificats sécurisés, vérifiables en un scan</h2>
+        <p className="mt-4 text-lg text-gray-700">
+          Chaque document porte un numéro unique, une signature numérique et un QR code. Vous le téléchargez en PDF depuis votre
+          espace, et un employeur confirme son authenticité en quelques secondes.
+        </p>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl bg-gold-100 p-5 transition duration-300 hover:-translate-y-1 hover:shadow-md">
             <BookOpen className="size-6 text-gold-700" />
             <h3 className="mt-3 font-bold">Attestation de suivi</h3>
-            <p className="mt-1 text-sm text-gray-700">Vous avez terminé toutes les leçons de la formation.</p>
+            <p className="mt-1 text-sm text-gray-700">Délivrée automatiquement quand vous avez terminé toutes les leçons.</p>
           </div>
           <div className="rounded-2xl bg-brand-50 p-5 transition duration-300 hover:-translate-y-1 hover:shadow-md">
             <ShieldCheck className="size-6 text-brand-700" />
             <h3 className="mt-3 font-bold">Certificat de compétence</h3>
-            <p className="mt-1 text-sm text-gray-700">Vous avez réussi l'examen final de la formation.</p>
+            <p className="mt-1 text-sm text-gray-700">Délivré quand vous avez réussi l'examen final de la formation.</p>
           </div>
         </div>
         <Button to="/verifier" variant="outline" className="mt-7"><BadgeCheck className="size-5" /> Vérifier un certificat</Button>
@@ -337,14 +342,14 @@ function Vision() {
           <p className="mb-2 text-sm font-bold tracking-wide text-flame-600 uppercase">Notre vision</p>
           <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Que chaque jeune devienne une lumière grâce au numérique</h2>
           <p className="mt-4 text-lg leading-relaxed text-gray-700">
-            Né au sein du {academy.center}, ALuNI veut donner à chaque jeune les compétences numériques pour réussir ses
-            études, trouver un emploi ou créer son activité. {s['about.vision']}
+            Née au sein du {academy.center}, l'{academy.name} ({academy.short}) veut donner à chaque jeune les compétences
+            numériques pour réussir ses études, trouver un emploi ou créer son activité. {s['about.vision']}
           </p>
           <Button to="/a-propos" variant="flame" className="mt-7 hover:-translate-y-0.5">Découvrir l'Académie <ArrowRight className="arrow-slide size-4" /></Button>
         </Reveal>
         <div className="grid gap-4 sm:grid-cols-2">
           {[
-            { icon: Lightbulb, title: 'Apprendre en pratiquant', text: 'Des exercices concrets dans chaque module, en salle ou à la maison.' },
+            { icon: Lightbulb, title: 'Apprendre en pratiquant', text: "Des quiz et des exercices concrets dans chaque module, en salle ou à la maison." },
             { icon: Smartphone, title: 'Accessible partout', text: 'La plateforme fonctionne sur tous les téléphones, même avec une connexion modeste.' },
             { icon: WifiOff, title: 'Rien ne se perd', text: 'Progression et réponses enregistrées automatiquement, même en cas de coupure.' },
             { icon: Users, title: 'Accompagnement humain', text: "Des formateurs présents à l'Académie pour vous aider et vous encourager." },
@@ -366,11 +371,11 @@ function Vision() {
 const AUTOPLAY_MS = 6000
 const PORTRAIT_TONES = [
   'from-brand-600 to-brand-800',
-  'from-flame-500 to-flame-600',
-  'from-brand-700 to-flame-500',
-  'from-gold-500 to-flame-500',
+  'from-brand-800 to-brand-950',
   'from-brand-500 to-brand-700',
-  'from-flame-600 to-brand-700',
+  'from-brand-700 to-brand-900',
+  'from-brand-400 to-brand-700',
+  'from-brand-900 to-brand-600',
 ]
 const initials = (name) => name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()
 
@@ -482,7 +487,7 @@ function Testimonials() {
   )
 }
 
-export const NEWS_COVERS = ['bg-brand-700', 'bg-flame-500', 'bg-gold-500']
+export const NEWS_COVERS = ['bg-brand-700', 'bg-flame-400', 'bg-brand-900']
 
 export function NewsCover({ item, index, className }) {
   const image = fileUrl(item.image)
@@ -551,6 +556,43 @@ function Partners({ partners }) {
   )
 }
 
+/** Accès rapide à la FAQ : les premières questions s'ouvrent sur place, le reste sur la page dédiée. */
+function FaqPreview({ faq }) {
+  const academy = useAcademy()
+  const [open, setOpen] = useState(0)
+  if (!faq.length) return null
+  const items = faq.slice(0, 5)
+  return (
+    <section className="container-page grid gap-10 py-16 lg:grid-cols-[1fr_1.6fr]">
+      <Reveal>
+        <p className="mb-2 text-sm font-bold tracking-wide text-flame-600 uppercase">Questions fréquentes</p>
+        <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Vous avez une question ?</h2>
+        <p className="mt-3 text-lg text-gray-700">Inscription, compte, formations en ligne ou en salle, examens, certificats : les réponses aux questions les plus posées. Et pour tout le reste, notre assistant vous répond tout de suite.</p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Button to="/faq" className="hover:-translate-y-0.5"><HelpCircle className="size-5" />Toutes les questions</Button>
+          <Button onClick={() => openAssistant()} variant="outline-gray" className="hover:-translate-y-0.5"><MessageCircleQuestion className="size-5" />Poser ma question</Button>
+        </div>
+        {academy.phone && <p className="mt-4 text-sm text-gray-600">Ou appelez-nous au <a href={`tel:${academy.phone.replace(/\s/g, '')}`} className="font-semibold text-brand-700 hover:underline">{academy.phone}</a></p>}
+      </Reveal>
+      <Reveal delay={120} className="divide-y divide-gray-200 self-start rounded-2xl border border-gray-200 bg-white">
+        {items.map((f, i) => (
+          <div key={f.id}>
+            <button type="button" onClick={() => setOpen(open === i ? -1 : i)} aria-expanded={open === i}
+              className="flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-gray-50">
+              <span className="flex-1 font-bold">{f.q}</span>
+              <ChevronDown className={cx('size-5 shrink-0 text-gray-500 transition duration-300', open === i && 'rotate-180 text-brand-600')} />
+            </button>
+            {open === i && <p className="animate-fade-in px-5 pb-5 leading-relaxed whitespace-pre-line text-gray-700">{f.a}</p>}
+          </div>
+        ))}
+        <Link to="/faq" className="group flex items-center justify-between px-5 py-4 text-sm font-bold text-brand-700 hover:bg-brand-50">
+          Voir les {faq.length} questions <ArrowRight className="arrow-slide size-4" />
+        </Link>
+      </Reveal>
+    </section>
+  )
+}
+
 function FinalCta() {
   const { user } = useAuth()
   return (
@@ -582,6 +624,7 @@ export default function Home() {
   const coursesState = useApi('/courses')
   const news = useApi('/news').data ?? []
   const partners = useApi('/partners').data ?? []
+  const faq = useApi('/faq').data ?? []
   const courses = coursesState.data ?? []
   return (
     <>
@@ -595,6 +638,7 @@ export default function Home() {
       <Vision />
       <Testimonials />
       <LatestNews news={news} />
+      <FaqPreview faq={faq} />
       <Partners partners={partners} />
       <FinalCta />
     </>

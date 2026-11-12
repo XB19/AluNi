@@ -1,14 +1,23 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router'
 import { HOME_BY_ROLE, useAuth } from '../../context/AuthContext'
-import { CheckCircle2, Mail, MessageSquare } from 'lucide-react'
+import { CheckCircle2, LifeBuoy, Mail, MessageSquare } from 'lucide-react'
 import { api } from '../../api/client'
-import { Button, cx, Field, FormError } from '../../components/ui'
+import { useApi } from '../../api/useApi'
+import { useAcademy } from '../../context/SettingsContext'
+import { Button, cx, Field, FormError, Loading } from '../../components/ui'
 import AuthLayout from './AuthLayout'
 
+const CHANNELS = [['sms', 'Par SMS', MessageSquare], ['email', 'Par e-mail', Mail]]
+
 function ForgotPasswordPage() {
+  const academy = useAcademy()
+  // Seuls les moyens d'envoi réellement configurés sur le serveur sont proposés
+  const channels = useApi('/auth/channels')
+  const available = CHANNELS.filter(([k]) => channels.data?.[k])
   const [step, setStep] = useState(0)
-  const [channel, setChannel] = useState('sms')
+  const [picked, setPicked] = useState(null)
+  const channel = available.some(([k]) => k === picked) ? picked : available[0]?.[0]
   const [identifier, setIdentifier] = useState('')
   const [code, setCode] = useState('')
   const [password, setPassword] = useState('')
@@ -45,11 +54,25 @@ function ForgotPasswordPage() {
 
   return (
     <AuthLayout title={titles[step]} subtitle={subtitle}>
-      {step === 0 && (
+      {step === 0 && channels.loading && !channels.data && <Loading className="min-h-32" />}
+      {step === 0 && (channels.data || channels.error) && !available.length && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950">
+          <LifeBuoy className="size-7 text-amber-600" />
+          <p className="mt-3 font-bold">La récupération automatique n'est pas encore activée</p>
+          <p className="mt-1 text-sm">
+            Contactez l'Académie : l'administration réinitialise votre mot de passe et vous communique un mot de passe provisoire.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button to="/contact" size="sm">Contacter l'Académie</Button>
+            {academy.phone && <Button href={`tel:${academy.phone.replace(/\s/g, '')}`} size="sm" variant="outline-gray">{academy.phone}</Button>}
+          </div>
+        </div>
+      )}
+      {step === 0 && available.length > 0 && (
         <form onSubmit={(e) => { e.preventDefault(); if (identifier.trim()) run(async () => { await sendCode(); setStep(1); setCooldown(60) }) }} className="space-y-5">
-          <div className="grid grid-cols-2 gap-3">
-            {[['sms', 'Par SMS', MessageSquare], ['email', 'Par e-mail', Mail]].map(([k, l, Icon]) => (
-              <button type="button" key={k} onClick={() => { setChannel(k); setIdentifier('') }} aria-pressed={channel === k}
+          <div className={cx('grid gap-3', available.length > 1 ? 'grid-cols-2' : 'grid-cols-1')}>
+            {available.map(([k, l, Icon]) => (
+              <button type="button" key={k} onClick={() => { setPicked(k); setIdentifier('') }} aria-pressed={channel === k}
                 className={cx('flex flex-col items-center gap-2 rounded-xl border-2 p-4 font-semibold', channel === k ? 'border-brand-600 bg-brand-50 text-brand-800' : 'border-gray-200 text-gray-700')}>
                 <Icon className="size-6" />{l}
               </button>

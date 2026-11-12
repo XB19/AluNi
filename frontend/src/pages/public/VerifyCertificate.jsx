@@ -44,7 +44,6 @@ function Result({ code }) {
           ['Formation', cert.course.title],
           ['Type', CERT_TYPES[cert.type]?.label],
           ['Date de délivrance', formatDate(cert.date)],
-          ['Résultat', cert.score != null ? `${cert.score} / 100 – ${cert.mention}` : 'Formation terminée'],
           ['Signature numérique', cert.signature],
         ].map(([k, v]) => (
           <div key={k}>

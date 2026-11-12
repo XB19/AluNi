@@ -93,7 +93,7 @@ export function BackToTop() {
       onClick={() => window.scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' })}
       aria-label="Revenir en haut de la page"
       className={cx(
-        'fixed right-5 bottom-22 z-30 flex size-11 items-center justify-center rounded-full bg-white text-brand-700 shadow-lg ring-1 ring-gray-200 transition duration-300 hover:-translate-y-0.5 hover:bg-brand-50',
+        'fixed right-5.5 bottom-37 z-30 flex size-11 items-center justify-center rounded-full bg-white text-brand-700 shadow-lg ring-1 ring-gray-200 transition duration-300 hover:-translate-y-0.5 hover:bg-brand-50',
         visible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0',
       )}
     >

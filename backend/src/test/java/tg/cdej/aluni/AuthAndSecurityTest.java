@@ -55,17 +55,26 @@ class AuthAndSecurityTest extends IntegrationTest {
     }
 
     @Test
-    void trainerAccountWaitsForValidation() throws Exception {
+    void trainerAccountsAreCreatedByTheAdministrationOnly() throws Exception {
+        // Inscription publique en tant que formateur : refusée
         mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
                 .content(body(Map.of("profile", "formateur", "speciality", "Photographie", "lastName", "Formateur",
                         "firstName", "Test", "birthDate", "1990-01-01", "gender", "M", "email", "formateur.test@exemple.tg",
                         "password", "MotDePasse1"))))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.pending").value(true));
+                .andExpect(status().isBadRequest());
 
+        // L'administrateur crée le compte et obtient un mot de passe provisoire
+        String admin = login("coordination@aluni.tg");
+        String temp = read(mvc.perform(post("/api/admin/users").header("Authorization", admin).contentType(MediaType.APPLICATION_JSON)
+                .content(body(Map.of("role", "formateur", "firstName", "Ayélé", "lastName", "Formatrice",
+                        "email", "formatrice.test@exemple.tg", "speciality", "Photographie"))))
+                .andExpect(status().is2xxSuccessful()).andReturn().getResponse().getContentAsString()).get("tempPassword").asText();
+
+        // Le formateur se connecte avec ses identifiants et accède à son espace
         mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
-                .content(body(Map.of("identifier", "formateur.test@exemple.tg", "password", "MotDePasse1"))))
-                .andExpect(status().isForbidden());
+                .content(body(Map.of("identifier", "formatrice.test@exemple.tg", "password", temp))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.role").value("formateur"));
     }
 
     @Test

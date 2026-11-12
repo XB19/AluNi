@@ -53,6 +53,12 @@ public class AuthController {
         return mapper.user(current.get());
     }
 
+    /** Moyens de récupération actifs : { sms: true|false, email: true|false }. */
+    @GetMapping("/channels")
+    public Map<String, Boolean> channels() {
+        return auth.recoveryChannels();
+    }
+
     @PostMapping("/forgot-password")
     public Map<String, String> forgot(@Valid @RequestBody ForgotPasswordRequest request) {
         auth.forgotPassword(request.channel(), request.identifier());

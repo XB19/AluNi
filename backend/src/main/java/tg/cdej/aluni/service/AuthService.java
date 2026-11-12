@@ -3,8 +3,10 @@ package tg.cdej.aluni.service;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -87,7 +89,11 @@ public class AuthService {
         if (phone == null && email == null) throw ApiException.badRequest("Indiquez au moins un téléphone ou un e-mail.");
         checkUnique(phone, email, null);
 
-        boolean trainer = "formateur".equalsIgnoreCase(r.profile());
+        // Les comptes formateurs sont créés par l'administration (Utilisateurs > Créer un compte)
+        if ("formateur".equalsIgnoreCase(r.profile())) {
+            throw ApiException.badRequest(
+                    "Les comptes formateurs sont créés par l'administration de l'Académie. Contactez-nous pour devenir formateur.");
+        }
         User u = new User();
         u.setFirstName(r.firstName().trim());
         u.setLastName(r.lastName().trim());
@@ -96,35 +102,20 @@ public class AuthService {
         u.setPhone(phone);
         u.setEmail(email);
         u.setPasswordHash(encoder.encode(r.password()));
-        if (trainer) {
-            if (r.speciality() == null || r.speciality().isBlank()) throw ApiException.badRequest("Indiquez votre spécialité.");
-            u.setRole(Role.FORMATEUR);
-            u.setSpeciality(r.speciality().trim());
-            u.setTitle("Formateur – " + r.speciality().trim());
-            u.setStatus(AccountStatus.EN_ATTENTE);
-        } else {
-            ProfileType profile = Codes.require(ProfileType.class, r.profile(), "profil");
-            u.setRole(Role.APPRENANT);
-            u.setProfileType(profile);
-            if (profile == ProfileType.AUTRE_CDEJ && (r.center() == null || r.center().isBlank())) {
-                throw ApiException.badRequest("Indiquez le nom de votre centre.");
-            }
-            u.setCenterName(switch (profile) {
-                case INTERNE -> "CDEJ TG0157";
-                case AUTRE_CDEJ -> r.center().trim();
-                case PARTICULIER -> null;
-            });
-            u.setStatus(AccountStatus.ACTIF);
+        ProfileType profile = Codes.require(ProfileType.class, r.profile(), "profil");
+        u.setRole(Role.APPRENANT);
+        u.setProfileType(profile);
+        if (profile == ProfileType.AUTRE_CDEJ && (r.center() == null || r.center().isBlank())) {
+            throw ApiException.badRequest("Indiquez le nom de votre centre.");
         }
+        u.setCenterName(switch (profile) {
+            case INTERNE -> "CDEJ TG0157";
+            case AUTRE_CDEJ -> r.center().trim();
+            case PARTICULIER -> null;
+        });
+        u.setStatus(AccountStatus.ACTIF);
         users.save(u);
 
-        if (trainer) {
-            users.findByRoleAndStatusOrderByCreatedAtAsc(Role.ADMIN, AccountStatus.ACTIF).forEach(admin ->
-                    notifications.notify(admin, tg.cdej.aluni.domain.NotificationType.ACCOUNT, "Nouvelle demande formateur",
-                            u.fullName() + " souhaite devenir formateur (" + u.getSpeciality() + ").", "/admin/validations"));
-            return new RegisterResponse(true, null, null,
-                    "Votre demande a été envoyée. Votre compte sera activé après validation par l'Académie.");
-        }
         notifications.notify(u, tg.cdej.aluni.domain.NotificationType.ACCOUNT, "Bienvenue sur ALuNI !",
                 "Votre compte est créé. Choisissez une première formation dans le catalogue pour commencer.", "/formations");
         return new RegisterResponse(false, tokens.issue(u), mapper.user(u), null);
@@ -153,27 +144,47 @@ public class AuthService {
 
     // ------------------------------------------------------------ Mot de passe oublié
 
+    /** Canaux de récupération réellement actifs (la page « Mot de passe oublié » n'affiche que ceux-là). */
+    public Map<String, Boolean> recoveryChannels() {
+        return Map.of("sms", sender.smsEnabled(), "email", sender.emailEnabled());
+    }
+
     @Transactional
     public void forgotPassword(String channel, String identifier) {
+        boolean byEmail = "email".equalsIgnoreCase(channel);
+        // Canal non configuré : on le dit, sans rien révéler sur l'existence du compte
+        if (byEmail ? !sender.emailEnabled() : !sender.smsEnabled()) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, byEmail
+                    ? "La récupération par e-mail n'est pas encore activée. Contactez l'Académie pour réinitialiser votre mot de passe."
+                    : "La récupération par SMS n'est pas encore activée. Contactez l'Académie pour réinitialiser votre mot de passe.");
+        }
         // Réponse identique que le compte existe ou non (ne révèle pas les comptes existants)
         findByIdentifier(identifier).filter(u -> u.getStatus() == AccountStatus.ACTIF).ifPresent(u -> {
             // Un seul code par minute : évite l'envoi de SMS / e-mails en rafale
             boolean recent = resetCodes.findFirstByUserAndUsedFalseOrderByCreatedAtDesc(u)
                     .filter(last -> last.getCreatedAt().isAfter(Instant.now().minus(RESEND_DELAY))).isPresent();
             if (recent) return;
+            String to = byEmail ? u.getEmail() : u.getPhone();
+            if (to == null) return; // ce compte n'a pas ce moyen de contact
             String code = String.format("%06d", RANDOM.nextInt(1_000_000));
             PasswordResetCode reset = new PasswordResetCode();
             reset.setUser(u);
             reset.setCodeHash(encoder.encode(code));
             reset.setExpiresAt(Instant.now().plus(CODE_VALIDITY));
             resetCodes.save(reset);
-            String text = "ALuNI : votre code de récupération est " + code + ". Il est valable 15 minutes.";
-            if ("email".equalsIgnoreCase(channel) && u.getEmail() != null) {
-                sender.sendEmail(u.getEmail(), "Code de récupération ALuNI", text);
-            } else if (u.getPhone() != null) {
-                sender.sendSms(u.getPhone(), text);
-            } else if (u.getEmail() != null) {
-                sender.sendEmail(u.getEmail(), "Code de récupération ALuNI", text);
+            try {
+                if (byEmail) {
+                    sender.deliverEmail(to, "Votre code de récupération ALuNI",
+                            "Bonjour " + u.getFirstName() + ",\nVoici le code pour créer un nouveau mot de passe sur ALuNI. "
+                                    + "Il est valable 15 minutes.",
+                            code);
+                } else {
+                    sender.deliverSms(to, "ALuNI : votre code de récupération est " + code + ". Il est valable 15 minutes.");
+                }
+            } catch (MessageSender.DeliveryException e) {
+                // Le code n'est pas enregistré (annulation) : l'utilisateur peut réessayer tout de suite
+                throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
+                        "L'envoi du code a échoué. Réessayez dans quelques instants ou contactez l'Académie.");
             }
         });
     }

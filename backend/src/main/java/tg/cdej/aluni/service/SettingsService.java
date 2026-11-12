@@ -24,7 +24,7 @@ public class SettingsService {
         d.put("academy.code", "TG0157");
         d.put("academy.city", "Kpévé, Togo");
         d.put("home.heroTitle", "Apprenez le numérique. Obtenez un certificat reconnu.");
-        d.put("home.heroSubtitle", "Des formations simples et pratiques en bureautique, programmation, design et plus encore. Apprenez à votre rythme, sur ordinateur ou sur téléphone, avec les formateurs de l'Académie Lumière.");
+        d.put("home.heroSubtitle", "Des formations simples et pratiques en bureautique, programmation, design et plus encore. Suivez-les en ligne à votre rythme ou en salle avec les formateurs de l'Académie, puis obtenez un certificat vérifiable.");
         d.put("about.mission", "Former les jeunes aux compétences numériques essentielles et certifier leurs acquis, pour les aider à réussir leurs études et leur insertion professionnelle.");
         d.put("about.vision", "Une génération de jeunes confiants, compétents et créatifs, capables de transformer leur communauté grâce au numérique.");
         d.put("about.values", "Excellence, intégrité, entraide et service. Chaque jeune a de la valeur et un potentiel à révéler.");

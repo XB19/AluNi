@@ -2,7 +2,8 @@ import { Link } from 'react-router'
 import { Award, Clock, Code, FileText, Network, Palette, Rocket, ShieldCheck, Star, Users } from 'lucide-react'
 import { CERT_TYPES } from '../data/constants'
 import { fileUrl } from '../api/client'
-import logo from '../assets/logo-cdej.jpg'
+import logoColor from '../assets/aluni-logo.svg'
+import logoWhite from '../assets/aluni-logo-white.svg'
 import { Badge, cx, ProgressBar } from './ui'
 
 export const CATEGORY_ICONS = { FileText, Code, Palette, Network, ShieldCheck, Rocket }
@@ -21,21 +22,14 @@ export function CategoryIcon({ icon, className }) {
   return <Icon className={className} />
 }
 
-export function Logo({ compact = false, light = false }) {
+/** Logo officiel ALuNI (lampe-toque et nom de l'Académie) : version bleue sur fond clair, blanche sur fond foncé. */
+export function Logo({ compact = false, light = false, className }) {
   return (
-    <span className="flex items-center gap-2.5">
-      <img src={logo} alt="Logo CDEJ Lumière de Kpévé" className="size-11 shrink-0 rounded-lg bg-white object-contain p-0.5" />
-      <span className="leading-tight">
-        <span className={cx('block text-xl font-extrabold tracking-tight', light ? 'text-white' : 'text-brand-700')}>
-          ALu<span className="text-flame-500">N</span>I
-        </span>
-        {!compact && (
-          <span className={cx('hidden text-[11px] font-medium sm:block', light ? 'text-brand-100' : 'text-gray-500')}>
-            Académie Lumière du Numérique
-          </span>
-        )}
-      </span>
-    </span>
+    <img
+      src={light ? logoWhite : logoColor}
+      alt="ALuNI – Académie Lumière du Numérique et de l'Innovation"
+      className={cx('block w-auto shrink-0', className ?? (compact ? 'h-11' : 'h-14'))}
+    />
   )
 }
 

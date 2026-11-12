@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Link, Navigate, useNavigate, useSearchParams } from 'react-router'
-import { ArrowLeft, Building2, Check, CheckCircle2, Clock, GraduationCap, Heart, User } from 'lucide-react'
+import { Link, Navigate, useNavigate } from 'react-router'
+import { ArrowLeft, Building2, Check, CheckCircle2, Heart, User } from 'lucide-react'
 import { HOME_BY_ROLE, useAuth } from '../../context/AuthContext'
 import { useAcademy } from '../../context/SettingsContext'
 import { Button, cx, Field, FormError } from '../../components/ui'
@@ -19,18 +19,16 @@ function strength(pw) {
 const STEP_FIELDS = [['profile', 'center', 'speciality'], ['lastName', 'firstName', 'birthDate', 'gender', 'phone', 'email'], ['password']]
 
 function RegisterPage() {
-  const [params] = useSearchParams()
   const academy = useAcademy()
   const { register } = useAuth()
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
-  const [done, setDone] = useState(false)
   const [busy, setBusy] = useState(false)
   const [serverError, setServerError] = useState(null)
   const [errors, setErrors] = useState({})
   const [f, setF] = useState({
-    profile: params.get('role') === 'formateur' ? 'formateur' : '',
-    center: '', speciality: '', lastName: '', firstName: '', birthDate: '', gender: '', phone: '', email: '', password: '', confirm: '', accept: false,
+    profile: '',
+    center: '', lastName: '', firstName: '', birthDate: '', gender: '', phone: '', email: '', password: '', confirm: '', accept: false,
   })
   const set = (k) => (e) => setF({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value })
 
@@ -38,7 +36,6 @@ function RegisterPage() {
     { id: 'interne', icon: Heart, title: `Jeune du CDEJ ${academy.code}`, text: `Je suis bénéficiaire du ${academy.center}` },
     { id: 'autre-cdej', icon: Building2, title: "Jeune d'un autre CDEJ", text: 'Je suis inscrit dans un autre centre' },
     { id: 'particulier', icon: User, title: 'Particulier', text: 'Je veux me former ou certifier mes compétences' },
-    { id: 'formateur', icon: GraduationCap, title: 'Formateur', text: "Je veux publier des cours (validation par l'Académie)" },
   ]
 
   const validate = () => {
@@ -46,7 +43,6 @@ function RegisterPage() {
     if (step === 0) {
       if (!f.profile) e.profile = 'Choisissez votre profil.'
       if (f.profile === 'autre-cdej' && !f.center.trim()) e.center = 'Indiquez le nom de votre centre.'
-      if (f.profile === 'formateur' && !f.speciality.trim()) e.speciality = 'Indiquez votre spécialité.'
     }
     if (step === 1) {
       if (!f.lastName.trim()) e.lastName = 'Champ obligatoire'
@@ -73,9 +69,8 @@ function RegisterPage() {
     setServerError(null)
     try {
       const { confirm, accept, ...data } = f
-      const res = await register({ ...data, phone: data.phone || null, email: data.email || null })
-      if (res.pending) setDone(true)
-      else navigate('/apprenant?bienvenue=1', { replace: true })
+      await register({ ...data, phone: data.phone || null, email: data.email || null })
+      navigate('/apprenant?bienvenue=1', { replace: true })
     } catch (err) {
       setServerError(err)
       if (err.fields && Object.keys(err.fields).length) {
@@ -88,19 +83,6 @@ function RegisterPage() {
     } finally {
       setBusy(false)
     }
-  }
-
-  if (done) {
-    return (
-      <AuthLayout title="Demande envoyée !">
-        <div className="rounded-2xl bg-amber-50 p-6 text-center">
-          <Clock className="mx-auto size-12 text-amber-600" />
-          <p className="mt-4 text-lg font-bold">Votre compte formateur est en attente de validation</p>
-          <p className="mt-2 text-gray-700">L'administration de l'Académie va examiner votre demande. Vous serez prévenu(e) par SMS ou e-mail dès l'activation de votre compte.</p>
-        </div>
-        <Button to="/" variant="outline" className="mt-6 w-full">Retour à l'accueil</Button>
-      </AuthLayout>
-    )
   }
 
   const pwScore = strength(f.password)
@@ -141,9 +123,10 @@ function RegisterPage() {
             {f.profile === 'autre-cdej' && (
               <Field label="Nom et code de votre CDEJ" error={errors.center}><input value={f.center} onChange={set('center')} className="input" placeholder="Ex. : CDEJ TG0212 Atakpamé" /></Field>
             )}
-            {f.profile === 'formateur' && (
-              <Field label="Votre spécialité" error={errors.speciality}><input value={f.speciality} onChange={set('speciality')} className="input" placeholder="Ex. : Bureautique, développement web…" /></Field>
-            )}
+            <p className="rounded-xl bg-gray-50 p-3 text-sm text-gray-600">
+              Vous êtes formateur ? Votre compte est créé par l'administration de l'Académie :{' '}
+              <Link to="/contact?sujet=formateur" className="font-semibold text-brand-700 hover:underline">contactez-nous</Link>.
+            </p>
           </>
         )}
 
@@ -201,7 +184,7 @@ function RegisterPage() {
             <Button type="button" variant="outline-gray" size="lg" onClick={() => setStep(step - 1)}><ArrowLeft className="size-5" />Retour</Button>
           )}
           <Button type="submit" size="lg" className="flex-1" disabled={busy}>
-            {busy ? 'Création…' : step < 2 ? 'Continuer' : f.profile === 'formateur' ? 'Envoyer ma demande' : 'Créer mon compte'}
+            {busy ? 'Création…' : step < 2 ? 'Continuer' : 'Créer mon compte'}
           </Button>
         </div>
       </form>

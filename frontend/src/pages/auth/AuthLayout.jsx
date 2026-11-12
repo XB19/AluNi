@@ -7,21 +7,21 @@ export default function AuthLayout({ title, subtitle, children }) {
     <div className="grid min-h-screen lg:grid-cols-[1fr_1.1fr]">
       <aside className="relative hidden overflow-hidden bg-gradient-to-br from-brand-700 to-brand-900 p-12 text-white lg:flex lg:flex-col">
         <div className="pointer-events-none absolute -right-20 -bottom-20 size-96 rounded-full bg-flame-500/20 blur-3xl" />
-        <Link to="/" className="relative"><Logo light /></Link>
+        <Link to="/" className="relative"><Logo light className="h-16" /></Link>
         <div className="relative my-auto max-w-md">
           <h2 className="text-4xl leading-tight font-extrabold">Votre avenir numérique commence ici.</h2>
           <ul className="mt-8 space-y-5">
             {[
               { icon: CheckCircle2, text: 'Des formations pratiques, du niveau débutant au niveau avancé' },
-              { icon: Smartphone, text: 'Apprenez sur ordinateur ou sur téléphone, à votre rythme' },
-              { icon: Award, text: 'Des certificats reconnus et vérifiables en ligne' },
+              { icon: Smartphone, text: "En ligne à votre rythme ou en salle à l'Académie, sur ordinateur ou téléphone" },
+              { icon: Award, text: 'Des certificats en PDF, vérifiables en ligne grâce à leur QR code' },
               { icon: Users, text: "L'accompagnement des formateurs de l'Académie" },
             ].map(({ icon: Icon, text }) => (
               <li key={text} className="flex items-start gap-3 text-lg text-brand-50"><Icon className="mt-1 size-5 shrink-0 text-flame-400" />{text}</li>
             ))}
           </ul>
         </div>
-        <p className="relative text-sm text-brand-200">© 2026 ALuNI – CDEJ TG0157, Kpévé</p>
+        <p className="relative text-sm text-brand-200">© {new Date().getFullYear()} ALuNI – Académie Lumière du Numérique et de l'Innovation, CDEJ TG0157 Kpévé</p>
       </aside>
       <main className="flex flex-col px-4 py-6 sm:px-10">
         <Link to="/" className="lg:hidden"><Logo /></Link>

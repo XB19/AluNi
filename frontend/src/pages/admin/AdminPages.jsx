@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import {
-  Award, Ban, BookOpen, Check, CheckCircle2, Download, Eye, FileSpreadsheet, Inbox, Mail, Pencil, Phone, Plus, Search, Trash2, TrendingUp, Upload,
-  UserCheck, Users, X,
+  Award, Ban, BookOpen, Check, CheckCircle2, Download, Eye, FileSpreadsheet, Inbox, KeyRound, Mail, Pencil, Phone, Plus, Search, Trash2, TrendingUp, Upload, UserCheck, Users, X,
 } from 'lucide-react'
 import { CERT_TYPES, COURSE_STATUS, PROFILE_LABELS, ROLE_LABELS, STATUS_LABELS, formatDate, formatDateTime } from '../../data/constants'
 import { api, fileUrl, qs } from '../../api/client'
@@ -38,7 +37,7 @@ export function AdminDashboard() {
     <>
       <PageHeader title="Tableau de bord" subtitle="Vue d'ensemble de l'Académie" actions={<Button to="/admin/statistiques" variant="outline-gray"><Download className="size-4" />Rapports</Button>} />
       <Async state={state}>
-        {({ stats, monthly, profiles, pendingTrainers, latestCertificates }) => (
+        {({ stats, monthly, profiles, latestCertificates }) => (
           <>
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               <StatCard icon={Users} label="Apprenants inscrits" value={stats.learners} hint={`+${stats.learnersThisMonth} ce mois-ci`} />
@@ -66,19 +65,12 @@ export function AdminDashboard() {
                   <h2 className="text-lg font-bold">En attente de validation</h2>
                   <Link to="/admin/validations" className="text-sm font-bold text-brand-700 hover:underline">Tout voir</Link>
                 </div>
-                {pendingTrainers.length ? (
-                  <ul className="divide-y divide-gray-100">
-                    {pendingTrainers.map((t) => (
-                      <li key={`t${t.id}`} className="flex items-center gap-3 py-3">
-                        <Avatar name={t.name} size="sm" />
-                        <div className="min-w-0 flex-1"><p className="font-semibold">{t.name}</p><p className="truncate text-sm text-gray-500">Formateur · {t.speciality}</p></div>
-                        <Badge tone="amber">Compte</Badge>
-                      </li>
-                    ))}
-                  </ul>
+                {stats.pendingValidations ? (
+                  <p className="text-sm text-gray-700"><strong>{stats.pendingValidations}</strong> demande(s) d'inscription ou de certificat à traiter.</p>
                 ) : (
                   <p className="text-sm text-gray-600">Rien à valider pour le moment. 👍</p>
                 )}
+                <Button to="/admin/utilisateurs" size="sm" variant="outline-gray" className="mt-4"><Plus className="size-4" />Créer un compte formateur</Button>
               </section>
               <section className="card p-5 sm:p-6">
                 <div className="mb-4 flex items-center justify-between">
@@ -115,10 +107,16 @@ function downloadCsv(name, rows) {
 }
 
 function CredentialsList({ accounts }) {
+  // Le texte dit la vérité sur l'envoi : SMS / e-mail seulement si ces canaux sont configurés
+  const channels = useApi('/auth/channels').data
+  const sent = channels && (channels.sms || channels.email)
   return (
     <div className="mt-4 rounded-xl border border-brand-200 bg-brand-50 p-4">
       <p className="text-sm font-bold text-brand-900">Identifiants provisoires ({accounts.length})</p>
-      <p className="text-xs text-brand-900/70">Ils ont été envoyés par SMS / e-mail. Notez-les maintenant : ils ne seront plus affichés.</p>
+      <p className="text-xs text-brand-900/70">
+        {sent ? `Ils sont aussi envoyés ${channels.sms && channels.email ? 'par SMS ou e-mail' : channels.sms ? 'par SMS' : 'par e-mail'} aux personnes. ` : "L'envoi automatique par SMS / e-mail n'est pas activé : communiquez-les vous-même. "}
+        Notez-les maintenant : ils ne seront plus affichés.
+      </p>
       <ul className="mt-3 max-h-48 space-y-1 overflow-y-auto text-sm">
         {accounts.map((a) => (
           <li key={a.id} className="flex justify-between gap-3 rounded bg-white px-3 py-1.5">
@@ -134,9 +132,10 @@ function CredentialsList({ accounts }) {
   )
 }
 
-function CreateUserModal({ open, onClose, onCreated }) {
-  const empty = { firstName: '', lastName: '', phone: '', email: '', role: 'apprenant', profile: 'interne', center: '', speciality: '' }
+function CreateUserModal({ open, onClose, onCreated, role = 'apprenant' }) {
+  const empty = { firstName: '', lastName: '', phone: '', email: '', role, profile: 'interne', center: '', speciality: '' }
   const [f, setF] = useState(empty)
+  useEffect(() => { if (open) setF((x) => ({ ...x, role })) }, [open, role])
   const [error, setError] = useState(null)
   const [created, setCreated] = useState(null)
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
@@ -265,11 +264,15 @@ export function AdminUsers() {
     const updated = await api.patch(`/admin/users/${u.id}`, body)
     state.setData((list) => list.map((x) => (x.id === u.id ? updated : x)).filter((x) => x.role === tab))
   }, msg)
+  // Mot de passe provisoire pour quelqu'un qui ne peut pas utiliser « Mot de passe oublié »
+  const [resetDone, setResetDone] = useState(null)
+  const resetPassword = (u) => confirm(`Créer un nouveau mot de passe provisoire pour ${u.name} ? L'ancien ne fonctionnera plus.`)
+    && run(async () => setResetDone(await api.post(`/admin/users/${u.id}/reset-password`)))
 
   return (
     <>
-      <PageHeader title="Utilisateurs" subtitle="Activez, suspendez et gérez les rôles des comptes."
-        actions={<><Button variant="outline-gray" onClick={() => setModal('import')}><FileSpreadsheet className="size-4" />Import Excel</Button><Button onClick={() => setModal('create')}><Plus className="size-4" />Créer un compte</Button></>} />
+      <PageHeader title="Utilisateurs" subtitle="Activez, suspendez et gérez les rôles des comptes. Les comptes formateurs sont créés ici."
+        actions={<><Button variant="outline-gray" onClick={() => setModal('import')}><FileSpreadsheet className="size-4" />Import Excel</Button><Button onClick={() => setModal('create')}><Plus className="size-4" />{tab === 'formateur' ? 'Créer un compte formateur' : 'Créer un compte'}</Button></>} />
       <Tabs className="mb-4" value={tab} onChange={setTab} tabs={Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label: label + 's' }))} />
       <label className="relative mb-4 block sm:w-80">
         <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-gray-400" />
@@ -297,7 +300,8 @@ export function AdminUsers() {
                         </select>
                       </td>
                       <td><Badge tone={STATUS_TONES[u.status]}>{STATUS_LABELS[u.status]}</Badge></td>
-                      <td className="pr-4 text-right">
+                      <td className="pr-4 text-right whitespace-nowrap">
+                        <Button size="sm" variant="ghost" onClick={() => resetPassword(u)} aria-label={`Réinitialiser le mot de passe de ${u.name}`} title="Réinitialiser le mot de passe"><KeyRound className="size-4" /></Button>
                         {u.status === 'actif'
                           ? <Button size="sm" variant="ghost" className="text-red-600" onClick={() => patch(u, { status: 'suspendu' }, 'Compte suspendu')}>Suspendre</Button>
                           : <Button size="sm" variant="secondary" onClick={() => patch(u, { status: 'actif' }, 'Compte activé')}>Activer</Button>}
@@ -313,7 +317,16 @@ export function AdminUsers() {
           )
         }
       </Async>
-      <CreateUserModal open={modal === 'create'} onClose={() => setModal('')} onCreated={state.reload} />
+      <Modal open={!!resetDone} onClose={() => setResetDone(null)} title="Nouveau mot de passe provisoire"
+        footer={<Button onClick={() => setResetDone(null)}>Terminer</Button>}>
+        {resetDone && (
+          <>
+            <p className="mb-3 text-sm text-gray-600">Communiquez ce mot de passe à la personne : elle pourra le changer dans « Mon profil » après connexion. </p>
+            <CredentialsList accounts={[resetDone]} />
+          </>
+        )}
+      </Modal>
+      <CreateUserModal open={modal === 'create'} role={tab} onClose={() => setModal('')} onCreated={state.reload} />
       <ImportModal open={modal === 'import'} onClose={() => setModal('')} onImported={state.reload} />
       {toastEl}
     </>
@@ -323,7 +336,7 @@ export function AdminUsers() {
 // ---------------------------------------------------------------- Validations
 export function AdminValidations() {
   const state = useApi('/admin/validations')
-  const [tab, setTab] = useState('trainers')
+  const [tab, setTab] = useState('enrollments')
   const [rejecting, setRejecting] = useState(null)
   const [comment, setComment] = useState('')
   const { run, toastEl } = useAction()
@@ -342,28 +355,14 @@ export function AdminValidations() {
 
   return (
     <>
-      <PageHeader title="Validations" subtitle="Comptes formateurs, inscriptions et certificats en attente." />
+      <PageHeader title="Validations" subtitle="Inscriptions et certificats en attente." />
       <Async state={state}>
         {(v) => (
           <>
             <Tabs className="mb-5" value={tab} onChange={setTab} tabs={[
-              { value: 'trainers', label: 'Formateurs', count: v.trainers.length },
               { value: 'enrollments', label: 'Inscriptions', count: v.enrollments.length },
               { value: 'certificates', label: 'Certificats', count: v.certificates.length },
             ]} />
-            {tab === 'trainers' && (v.trainers.length ? (
-              <Paginated items={v.trainers}>{(page) => (
-              <div className="card divide-y divide-gray-100">
-                {page.map((t) => (
-                  <div key={t.id} className="flex flex-wrap items-center gap-4 p-4">
-                    <Avatar name={t.name} />
-                    <div className="min-w-0 flex-1"><p className="font-bold">{t.name}</p><p className="text-sm text-gray-600">{t.speciality} · {[t.email, t.phone].filter(Boolean).join(' · ')}</p><p className="text-xs text-gray-500">Demande du {formatDate(t.date)}</p></div>
-                    <Actions kind="trainers" id={t.id} />
-                  </div>
-                ))}
-              </div>
-              )}</Paginated>
-            ) : <EmptyState icon={UserCheck} title="Aucune demande en attente" />)}
             {tab === 'enrollments' && (v.enrollments.length ? (
               <Paginated items={v.enrollments}>{(page) => (
               <div className="card divide-y divide-gray-100">

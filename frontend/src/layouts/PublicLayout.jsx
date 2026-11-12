@@ -8,6 +8,7 @@ import { useAcademy } from '../context/SettingsContext'
 import { CategoryIcon, Logo } from '../components/CourseCard'
 import { PageLoader } from '../components/PageLoader'
 import { BackToTop, useScrolled } from '../components/Motion'
+import Assistant from '../components/Assistant'
 import { Avatar, Button, cx } from '../components/ui'
 import { FacebookIcon, WhatsAppIcon, YoutubeIcon } from '../components/BrandIcons'
 import { fileUrl } from '../api/client'
@@ -146,7 +147,7 @@ function Header({ categories }) {
           <div className="flex items-center gap-5">
             <span className="font-semibold text-white">Pour les apprenants</span>
             {(!user || user.role === 'formateur') && (
-              <Link to={user ? '/formateur' : '/inscription?role=formateur'} className="hover:text-white">Pour les formateurs</Link>
+              <Link to={user ? '/formateur' : '/contact?sujet=formateur'} className="hover:text-white">Pour les formateurs</Link>
             )}
             <Link to="/a-propos" className="hover:text-white">CDEJ {academy.code}</Link>
           </div>
@@ -245,9 +246,10 @@ function Footer({ categories }) {
     <footer className="bg-brand-950 text-brand-100">
       <div className="container-page grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.2fr]">
         <div>
-          <Logo light />
+          <Logo light className="h-16" />
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-brand-200">
-            {academy.name}. Une initiative du {academy.center} ({academy.code}) pour former les jeunes aux compétences numériques.
+            L'{academy.name} ({academy.short}) est une initiative du {academy.center} ({academy.code}) pour former et certifier
+            les jeunes aux compétences numériques, en salle et en ligne.
           </p>
           <div className="mt-5 flex gap-2">
             {socials.map(({ Icon, label, href }) => (
@@ -271,7 +273,7 @@ function Footer({ categories }) {
             <li><Link to="/a-propos" className="hover:text-white">À propos</Link></li>
             <li><Link to="/actualites" className="hover:text-white">Actualités & événements</Link></li>
             <li><Link to="/verifier" className="hover:text-white">Vérifier un certificat</Link></li>
-            {!user && <li><Link to="/inscription?role=formateur" className="hover:text-white">Devenir formateur</Link></li>}
+            {!user && <li><Link to="/contact?sujet=formateur" className="hover:text-white">Devenir formateur</Link></li>}
             <li><Link to="/faq" className="hover:text-white">Questions fréquentes</Link></li>
             <li><Link to="/contact" className="hover:text-white">Contact</Link></li>
           </ul>
@@ -288,7 +290,7 @@ function Footer({ categories }) {
       </div>
       <div className="border-t border-white/10">
         <div className="container-page flex flex-col gap-2 py-5 text-xs text-brand-300 sm:flex-row sm:justify-between">
-          <p>© {new Date().getFullYear()} ALuNI – CDEJ {academy.code}. Tous droits réservés.</p>
+          <p>© {new Date().getFullYear()} {academy.short} – {academy.name}, CDEJ {academy.code}. Tous droits réservés.</p>
           <p>Formations numériques et certifications vérifiables</p>
         </div>
       </div>
@@ -305,9 +307,9 @@ export function WhatsAppButton() {
       target="_blank"
       rel="noreferrer"
       aria-label="Nous écrire sur WhatsApp"
-      className="fixed right-4 bottom-4 z-30 flex size-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition hover:scale-105"
+      className="fixed right-5 bottom-22 z-30 flex size-12 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition hover:scale-105"
     >
-      <WhatsAppIcon className="size-7" />
+      <WhatsAppIcon className="size-6" />
     </a>
   )
 }
@@ -331,6 +333,7 @@ export default function PublicLayout() {
       <Footer categories={cats} />
       <BackToTop />
       <WhatsAppButton />
+      <Assistant />
     </div>
   )
 }

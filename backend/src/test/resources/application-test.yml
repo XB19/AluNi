@@ -7,4 +7,10 @@ spring:
 
 aluni:
   storage-dir: ./target/test-uploads
+  messaging:
+    log-only: true
+  # Tests : l'assistant répond à partir de la FAQ (aucun appel à l'API Claude)
+  assistant:
+    api-key: ""
+    messages-per-hour: 40
   demo-password: Demo-Test-2026

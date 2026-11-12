@@ -3,27 +3,29 @@
 @theme {
   --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
-  /* Vert CDEJ (logo) */
-  --color-brand-50: #edf8ef;
-  --color-brand-100: #d4eeda;
-  --color-brand-200: #aadcb5;
-  --color-brand-300: #77c38a;
-  --color-brand-400: #45a660;
-  --color-brand-500: #258a41;
-  --color-brand-600: #1a6f33;
-  --color-brand-700: #16592b;
-  --color-brand-800: #134725;
-  --color-brand-900: #0f3a1f;
-  --color-brand-950: #07210f;
+  /* Bleu ALuNI (logo officiel : #2c59a5) */
+  --color-brand-50: #eef3fb;
+  --color-brand-100: #d9e4f5;
+  --color-brand-200: #b4c9ea;
+  --color-brand-300: #84a6db;
+  --color-brand-400: #5582c8;
+  --color-brand-500: #3a6cb8;
+  --color-brand-600: #2c59a5;
+  --color-brand-700: #244a8a;
+  --color-brand-800: #1f3d71;
+  --color-brand-900: #1b335d;
+  --color-brand-950: #0f1d38;
 
-  /* Flamme (logo) */
-  --color-flame-50: #fff5ee;
-  --color-flame-100: #ffe6d4;
-  --color-flame-200: #ffc9a6;
-  --color-flame-400: #fb8a3c;
-  --color-flame-500: #f26a1b;
-  --color-flame-600: #d9530f;
-  --color-flame-700: #b4400e;
+  /* Jaune lumière (logo officiel : #ffda00). Le jaune vif sert de fond (avec texte foncé) ou sur fond bleu ;
+     sur fond blanc, le texte passe aux teintes or foncé (600-700) pour rester lisible. */
+  --color-flame-50: #fffbe6;
+  --color-flame-100: #fff3b8;
+  --color-flame-200: #ffe97a;
+  --color-flame-400: #ffda00;
+  --color-flame-500: #f0b800;
+  --color-flame-600: #946f00;
+  --color-flame-700: #745700;
+  --color-flame-900: #3f3000;
 
   /* Or de la croix */
   --color-gold-100: #f4efe0;
@@ -31,7 +33,7 @@
   --color-gold-500: #b5a36a;
   --color-gold-700: #7d6f42;
 
-  --color-ink: #1b1f1d;
+  --color-ink: #161b26;
 }
 
 @layer base {

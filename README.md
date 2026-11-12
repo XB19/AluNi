@@ -97,7 +97,7 @@ Les tests d'intégration utilisent une base dédiée `aluni_test`, à créer une
 
 ## Fonctionnalités principales
 
-- **Comptes** : inscription par profil (CDEJ interne, autre CDEJ, particulier, formateur soumis à validation), connexion par téléphone ou e-mail, récupération par code (SMS / e-mail), import Excel de comptes.
+- **Comptes** : inscription par profil (CDEJ interne, autre CDEJ, particulier ; comptes formateurs créés par l'administration), connexion par téléphone ou e-mail, récupération par code (SMS / e-mail), import Excel de comptes.
 - **Formations** : modules et leçons (texte, vidéo, PDF, image), déblocage progressif, quiz d'entraînement corrigés automatiquement. Le formateur publie lui-même sa formation : elle est visible immédiatement dans le catalogue (l'administration peut l'archiver si besoin). Le formateur fournit les questions **et leurs réponses** (saisie ou import Word) : il n'a aucune copie à corriger.
 - **Import de documents** (espace formateur) :
   - *Cours* : un fichier Word (.docx/.doc), PowerPoint (.pptx/.ppt), PDF ou texte est découpé automatiquement en modules et leçons (titres « Titre 1 / Titre 2 » ou lignes « Module 1 : … / Leçon 1.1 : … », diapositives de section, taille des caractères pour les PDF). Texte, listes, tableaux, images et notes du présentateur sont repris ; le document original peut être joint.
@@ -105,9 +105,21 @@ Les tests d'intégration utilisent une base dédiée `aluni_test`, à créer une
   - Des modèles Word sont téléchargeables depuis les fenêtres d'import.
 - **Examens** : chronomètre côté serveur, tirage et mélange des questions, sauvegarde automatique (reprise après coupure), une seule session active, détection des changements d'onglet, mode « examen en salle » (adresses IP de la salle), correction automatique. Deux modalités par inscription : **en salle** (apprenants du CDEJ : support de cours PDF, examen lors d'une session programmée par le formateur avec un créneau horaire, une seule tentative) et **en ligne** (autres CDEJ et particuliers : modules suivis à son rythme, examen ouvert à tout moment une fois les modules terminés, tentatives illimitées jusqu'à la réussite). Le formateur peut changer la modalité d'un apprenant.
 - **Certificats** : attestation de suivi et certificat de compétence, numéro unique, signature numérique HMAC, QR code, PDF officiel, vérification publique, révocation, modèles personnalisables.
-- **Administration** : validations (comptes formateurs, inscriptions, certificats), archivage des formations, utilisateurs, catégories, contenus du site vitrine, messages de contact, statistiques et rapports exportables (Excel / PDF).
+- **Administration** : création des comptes formateurs, réinitialisation des mots de passe, validations (inscriptions, certificats), archivage des formations, utilisateurs, catégories, contenus du site vitrine, messages de contact, statistiques et rapports exportables (Excel / PDF).
 
 ## Envoi des SMS et e-mails
 
-- **E-mails** : ils partent dès que `spring.mail.*` est configuré (voir `.env.example`).
-- **SMS** : il faut brancher un fournisseur dans `MessageSender.sendSms`. En attendant, les messages (codes de récupération, identifiants) sont écrits dans le journal du serveur.
+Les codes de récupération du mot de passe et les identifiants des nouveaux comptes partent par SMS ou par e-mail. Chaque canal s'active dès que ses paramètres sont renseignés dans `backend/.env` (modèle commenté dans `.env.example`) :
+
+- **E-mails** (SMTP, par exemple Gmail avec un mot de passe d'application) : `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`. Les messages partent en HTML aux couleurs d'ALuNI.
+- **SMS** (Twilio) : `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM`. Les numéros togolais à 8 chiffres sont envoyés au format international (+228…).
+
+La page « Mot de passe oublié » ne propose que les canaux actifs. Si aucun n'est configuré, elle invite à contacter l'Académie : l'administrateur peut alors **réinitialiser le mot de passe** depuis *Utilisateurs* (un mot de passe provisoire est affiché et envoyé à la personne si possible). En développement, `MESSAGES_LOG_ONLY=true` simule les envois en écrivant les codes dans le journal du serveur.
+
+## Assistant de la plateforme (chatbot)
+
+Le bouton **« Une question ? »** (site public et espaces connectés) ouvre un assistant qui explique le fonctionnement de la plateforme. Il tient compte du profil connecté (visiteur, apprenant, formateur, administrateur) et signale quand une fonction est réservée à un autre profil.
+
+- **Avec une clé de l'API Claude** (`ANTHROPIC_API_KEY` dans `backend/.env`) : les réponses sont rédigées par Claude à partir du guide `backend/src/main/resources/assistant/guide.md`, de la FAQ, du catalogue et des coordonnées de l'Académie, lus en direct.
+- **Sans clé**, ou si le service est indisponible : l'assistant répond avec les fiches d'aide par profil (`assistant/fiches.md`) et la FAQ.
+- Chaque visiteur est limité à `ASSISTANT_MESSAGES_PER_HOUR` messages par heure (30 par défaut). La clé reste sur le serveur, jamais dans le navigateur.

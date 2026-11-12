@@ -2,24 +2,36 @@ import { useId } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { formatDate } from '../data/constants'
 import { useAcademy } from '../context/SettingsContext'
-import logo from '../assets/logo-cdej.jpg'
+import logoWhite from '../assets/aluni-logo-white.svg'
+import icon from '../assets/aluni-icon.svg'
+import cdejLogo from '../assets/logo-cdej.jpg'
 
 /**
- * Modèles de certificat : même mise en page, seules les couleurs du bandeau et du sceau changent.
+ * Modèles de certificat : même mise en page, seules les couleurs changent (cadre, bandeau, liseré, sceau, QR code).
  * Les clés restent celles enregistrées dans les paramètres (classique, vert, flamme). Couleurs reprises par le PDF serveur.
  */
 export const TEMPLATES = {
-  classique: { name: 'ALuNI (vert et orange)', band: ['#07210f', '#16592b', '#258a41', '#f26a1b'], accent: '#16592b', seal: '#f26a1b' },
-  vert: { name: 'Vert CDEJ', band: ['#07210f', '#134725', '#1a6f33', '#45a660'], accent: '#16592b', seal: '#258a41' },
-  flamme: { name: 'Flamme', band: ['#0f3a1f', '#b4400e', '#f26a1b', '#fb8a3c'], accent: '#b4400e', seal: '#f26a1b' },
+  classique: {
+    name: 'ALuNI (bleu et jaune)', band: ['#0f1d38', '#1b335d', '#244a8a', '#3a6cb8'], stripe: '#ffda00',
+    accent: '#2c59a5', seal: '#946f00', frame: ['#1f3d71', '#0f1d38'], qr: '#1b335d',
+  },
+  vert: {
+    name: 'Vert CDEJ', band: ['#07210f', '#134725', '#1a6f33', '#45a660'], stripe: '#ffda00',
+    accent: '#16592b', seal: '#1a6f33', frame: ['#134725', '#07210f'], qr: '#0f3a1f',
+  },
+  flamme: {
+    name: 'Bleu nuit et or', band: ['#070f22', '#0f1d38', '#1b335d', '#244a8a'], stripe: '#d4a72c',
+    accent: '#1b335d', seal: '#946f00', frame: ['#1b335d', '#070f22'], qr: '#0f1d38',
+  },
 }
 export const templateSwatch = (t) => `linear-gradient(100deg, ${t.band.join(', ')})`
 
-const FRAME = 'linear-gradient(160deg, #134725 0%, #0f3a1f 45%, #07210f 100%)'
-const PAPER = '#f7f8f7'
-const INK = '#1b1f1d'
-const MUTED = '#5b625e'
-const DOTTED = '#c5cbc7'
+const PAPER = '#f7f8fa'
+const INK = '#161b26'
+const MUTED = '#5b6270'
+const DOTTED = '#c5cad3'
+/** Proportions du logo officiel (viewBox 444.14 × 147.88). */
+const LOGO_RATIO = 444.14 / 147.88
 // Mêmes polices que le PDF du serveur (resources/fonts) : le document téléchargé est identique à l'aperçu
 const SANS = '"Plus Jakarta Sans Variable", "Plus Jakarta Sans", sans-serif'
 const SCRIPT = '"Great Vibes", cursive'
@@ -41,21 +53,23 @@ export default function Certificate({ cert, template, className = '' }) {
   )
 
   return (
-    <div className={`relative w-full overflow-hidden shadow-xl ${className}`} style={{ containerType: 'inline-size', aspectRatio: '297 / 210', background: FRAME, padding: cq(2.2) }}>
+    <div className={`relative w-full overflow-hidden shadow-xl ${className}`}
+      style={{ containerType: 'inline-size', aspectRatio: '297 / 210', background: `linear-gradient(160deg, ${t.frame[0]}, ${t.frame[1]})`, padding: cq(2.2) }}>
       <div className="relative h-full overflow-hidden" style={{ background: PAPER }}>
-        {/* Bandeau supérieur en dégradé, trame de points */}
+        {/* Bandeau supérieur en dégradé, trame de points, liseré jaune « lumière » */}
         <div className="absolute inset-x-0 top-0" style={{ height: '27%', background: templateSwatch(t) }}>
           <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,.22) 1px, transparent 1.3px)', backgroundSize: `${cq(1.3)} ${cq(1.3)}` }} />
           <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 32% 110%, rgba(255,255,255,.18), transparent 55%)' }} />
+          <div className="absolute inset-x-0 bottom-0" style={{ height: cq(0.6), background: t.stripe }} />
           <div className="relative flex h-full items-center text-white" style={{ paddingLeft: '13%', gap: cq(3.5) }}>
+            {/* Logo officiel, version blanche */}
+            <img src={logoWhite} alt="ALuNI – Académie Lumière du Numérique et de l'Innovation" style={{ height: cq(9), width: cq(9 * LOGO_RATIO) }} />
+            {/* Le CDEJ qui porte l'Académie : son logo, puis son code */}
             <div className="flex items-center" style={{ gap: cq(1.2) }}>
-              <img src={logo} alt="Logo CDEJ" className="rounded-full bg-white object-contain" style={{ width: cq(6.2), height: cq(6.2), padding: cq(0.35) }} />
-              <div className="leading-none">
-                <p className="font-extrabold tracking-tight" style={{ fontSize: cq(3) }}>ALu<span style={{ color: '#ffb27a' }}>N</span>I</p>
-                <p className="font-light" style={{ fontSize: cq(1.15), marginTop: cq(0.45), opacity: 0.92 }}>{academy.name}</p>
-              </div>
+              <img src={cdejLogo} alt={`Logo du ${academy.center}`} className="rounded-full bg-white object-contain"
+                style={{ width: cq(6.2), height: cq(6.2), padding: cq(0.35) }} />
+              <p className="font-extrabold tracking-tight" style={{ fontSize: cq(2.8) }}>CDEJ {academy.code}</p>
             </div>
-            <p className="font-extrabold tracking-tight" style={{ fontSize: cq(2.8) }}>CDEJ {academy.code}</p>
           </div>
         </div>
 
@@ -101,7 +115,7 @@ export default function Certificate({ cert, template, className = '' }) {
                 <p>sur la page « Vérifier un certificat »</p>
               </div>
               <div className="bg-white" style={{ padding: cq(0.5), border: `${cq(0.1)} solid #e3e7e4` }}>
-                <QRCodeSVG value={cert.verifyUrl} size={256} fgColor="#0f3a1f" style={{ width: cq(7.5), height: cq(7.5), display: 'block' }} />
+                <QRCodeSVG value={cert.verifyUrl} size={256} fgColor={t.qr}style={{ width: cq(7.5), height: cq(7.5), display: 'block' }} />
               </div>
             </div>
           </div>
@@ -111,7 +125,7 @@ export default function Certificate({ cert, template, className = '' }) {
   )
 }
 
-/** Sceau rond : texte circulaire « Académie Lumière du Numérique » / « Certification » et logo au centre. */
+/** Sceau rond : nom officiel en texte circulaire (« Académie Lumière du Numérique » / « et de l'Innovation ») et icône ALuNI au centre. */
 function Seal({ t, style }) {
   const id = useId().replace(/:/g, '')
   return (
@@ -120,7 +134,6 @@ function Seal({ t, style }) {
         {/* Arc supérieur (240°) lu de gauche à droite, arc inférieur (120°) lu de gauche à droite */}
         <path id={`top-${id}`} d="M 42.8 133 A 66 66 0 1 1 157.2 133" />
         <path id={`bottom-${id}`} d="M 30.7 140 A 80 80 0 0 0 169.3 140" />
-        <clipPath id={`clip-${id}`}><circle cx="100" cy="100" r="40" /></clipPath>
       </defs>
       <circle cx="100" cy="100" r="97" fill="#fff" />
       <circle cx="100" cy="100" r="89" fill="none" stroke={t.accent} strokeWidth="3" />
@@ -128,12 +141,13 @@ function Seal({ t, style }) {
       <text fill={t.accent} fontSize="11.5" fontWeight="700" letterSpacing="1.2" fontFamily={SANS}>
         <textPath href={`#top-${id}`} startOffset="50%" textAnchor="middle">ACADÉMIE LUMIÈRE DU NUMÉRIQUE</textPath>
       </text>
-      <text fill={t.seal} fontSize="13" fontWeight="800" letterSpacing="2.5" fontFamily={SANS}>
-        <textPath href={`#bottom-${id}`} startOffset="50%" textAnchor="middle">CERTIFICATION</textPath>
+      <text fill={t.seal} fontSize="11.5" fontWeight="800" letterSpacing="1.5" fontFamily={SANS}>
+        <textPath href={`#bottom-${id}`} startOffset="50%" textAnchor="middle">ET DE L’INNOVATION</textPath>
       </text>
-      <circle cx="35.5" cy="128" r="2.6" fill={t.seal} />
-      <circle cx="164.5" cy="128" r="2.6" fill={t.seal} />
-      <image href={logo} x="60" y="60" width="80" height="80" clipPath={`url(#clip-${id})`} preserveAspectRatio="xMidYMid slice" />
+      <circle cx="35.5" cy="128" r="2.6" fill={t.stripe} />
+      <circle cx="164.5" cy="128" r="2.6" fill={t.stripe} />
+      {/* Icône (viewBox 131 × 150) : 64 × 73,3 centrée */}
+      <image href={icon} x="68" y="63.35" width="64" height="73.3" />
     </svg>
   )
 }

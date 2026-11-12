@@ -59,6 +59,7 @@ public class SecurityConfig {
                                 "/api/news", "/api/news/*", "/api/partners", "/api/faq", "/api/site/settings",
                                 "/api/certificates/verify/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/contact").permitAll()
+                        .requestMatchers("/api/assistant/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
                         .requestMatchers("/api/docs/**", "/v3/api-docs/**", "/actuator/health").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

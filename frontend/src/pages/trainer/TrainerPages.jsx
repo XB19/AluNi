@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import {
-  AlertTriangle, BookOpen, Download, Eye, FileCheck, FileUp, Library, Pencil, Plus, Search, ShieldAlert, Trash2, TrendingUp, Users,
+  AlertTriangle, BookOpen, Check, ChevronLeft, ChevronRight, Download, Eye, FileCheck, FileUp, Library, Pencil, Plus, Search, ShieldAlert,
+  ShieldCheck, Trash2, TrendingUp, Users,
 } from 'lucide-react'
 import { COURSE_STATUS, LEARNING_MODES, PROFILE_LABELS, QUESTION_TYPES, formatDate } from '../../data/constants'
 import { api, qs } from '../../api/client'
@@ -217,79 +218,203 @@ export function QuestionForm({ initial, courses, onSaved, formId = 'question-for
   )
 }
 
+/** Bonne réponse d'une question, en clair, pour la relire d'un coup d'œil. */
+function answerOf(x) {
+  if (x.type === 'courte') return x.accepted.join(' / ')
+  if (x.type === 'vraifaux') return ['Vrai', 'Faux'][x.correct[0]] ?? ''
+  return x.correct.map((i) => x.options[i]).filter(Boolean).join(' · ')
+}
+
+const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`
+
+/**
+ * Banque de questions, en deux temps pour s'y retrouver :
+ * 1. le formateur choisit une formation ;
+ * 2. il voit ses questions rangées par usage : l'examen final, puis le quiz de chaque module.
+ */
 export function QuestionBank() {
-  const courses = useApi('/trainer/courses').data ?? []
-  const [course, setCourse] = useState('')
-  const [type, setType] = useState('')
+  const [params, setParams] = useSearchParams()
+  const coursesState = useApi('/trainer/courses')
+  const courses = coursesState.data ?? []
+  const all = useApi('/trainer/questions')
+  const current = courses.find((c) => String(c.id) === params.get('formation'))
+  const open = (c) => setParams(c ? { formation: c.id } : {})
+
+  if (current) return <CourseQuestions course={current} courses={courses} onBack={() => open(null)} onChanged={all.reload} />
+
+  const counts = {}
+  for (const x of all.data ?? []) {
+    const k = counts[x.course.id] ??= { exam: 0, quiz: 0 }
+    if (x.module) k.quiz++
+    else k.exam++
+  }
+  return (
+    <>
+      <PageHeader title="Banque de questions" subtitle="Choisissez une formation pour voir et gérer ses questions : l'examen final et les quiz de chaque module." />
+      <Async state={coursesState}>
+        {(list) =>
+          list.length ? (
+            <Paginated items={list} pageSize={9}>{(page) => (
+              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                {page.map((c) => {
+                  const n = counts[c.id] ?? { exam: 0, quiz: 0 }
+                  return (
+                    <button key={c.id} type="button" onClick={() => open(c)}
+                      className="card group flex flex-col overflow-hidden text-left transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-brand-600">
+                      <CourseCover course={c} className="aspect-[16/7]" />
+                      <div className="flex flex-1 flex-col p-5">
+                        <span className="self-start"><StatusBadge status={c.status} /></span>
+                        <h3 className="mt-2 font-bold group-hover:text-brand-700">{c.title}</h3>
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                          <div className="rounded-xl bg-brand-50 px-3 py-2">
+                            <p className="text-lg font-extrabold text-brand-800">{all.data ? n.exam : '…'}</p>
+                            <p className="text-gray-600">Examen final</p>
+                          </div>
+                          <div className="rounded-xl bg-gold-100 px-3 py-2">
+                            <p className="text-lg font-extrabold text-gold-700">{all.data ? n.quiz : '…'}</p>
+                            <p className="text-gray-600">Quiz des modules</p>
+                          </div>
+                        </div>
+                        <span className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-brand-700">
+                          Voir les questions <ChevronRight className="size-4 transition group-hover:translate-x-0.5" />
+                        </span>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}</Paginated>
+          ) : (
+            <EmptyState icon={Library} title="Aucune formation" text="Créez d'abord une formation : vous pourrez ensuite lui ajouter des questions."
+              action={<Button to="/formateur/formations/nouvelle"><Plus className="size-4" />Nouvelle formation</Button>} />
+          )
+        }
+      </Async>
+    </>
+  )
+}
+
+/** Les questions d'une formation, par onglet : examen final, puis quiz module par module. */
+function CourseQuestions({ course, courses, onBack, onChanged }) {
+  const detail = useApi(`/trainer/courses/${course.id}`)
+  const modules = detail.data?.modules ?? []
+  const state = useApi('/trainer/questions' + qs({ course: course.slug }))
+  const [tab, setTab] = useState('exam')
   const [q, setQ] = useState('')
-  const state = useApi('/trainer/questions' + qs({ course, type, q }))
   const [editing, setEditing] = useState(null)
   const [importing, setImporting] = useState(false)
   const [toast, setToast] = useState('')
+  const reload = () => { state.reload(); onChanged() }
+
+  const list = state.data ?? []
+  const inTab = (x) => (tab === 'exam' ? !x.module : String(x.module?.id) === tab)
+  const countFor = (key) => list.filter((x) => (key === 'exam' ? !x.module : String(x.module?.id) === key)).length
+  const tabs = [
+    { key: 'exam', label: 'Examen final', count: countFor('exam') },
+    ...modules.map((m, i) => ({ key: String(m.id), label: `Module ${i + 1}`, title: m.title, count: countFor(String(m.id)) })),
+  ]
+  const active = tabs.find((t) => t.key === tab) ?? tabs[0]
+  const term = q.trim().toLowerCase()
+  const shown = list.filter(inTab).filter((x) => !term || x.text.toLowerCase().includes(term))
+  const points = list.filter(inTab).reduce((s, x) => s + x.points, 0)
 
   const remove = async (question) => {
     if (!confirm('Supprimer cette question ? Elle sera retirée des examens qui l’utilisent.')) return
     await api.del(`/trainer/questions/${question.id}`)
-    state.reload()
+    reload()
     setToast('Question supprimée')
   }
+  const edit = (x) => setEditing({
+    id: x.id, courseId: x.course.id, moduleId: x.module?.id ?? '', type: x.type, text: x.text,
+    options: x.options.length ? x.options : ['', '', '', ''], correct: x.correct.length ? x.correct : [0],
+    accepted: x.accepted.length ? x.accepted : [''], points: x.points,
+  })
+  // Nouvelle question : directement dans la formation et l'onglet ouverts
+  const create = () => setEditing({ ...blankQuestion(course.id), moduleId: tab === 'exam' ? '' : Number(tab) })
 
   return (
     <>
-      <PageHeader title="Banque de questions" subtitle="Indiquez la bonne réponse de chaque question : les quiz et l'examen final sont corrigés automatiquement."
+      <button type="button" onClick={onBack} className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:underline">
+        <ChevronLeft className="size-4" />Toutes les formations
+      </button>
+      <PageHeader title={course.title} subtitle="Indiquez la bonne réponse de chaque question : les quiz et l'examen final sont corrigés automatiquement."
         actions={<>
-          <Button variant="outline-gray" onClick={() => setImporting(true)} disabled={!courses.length}><FileUp className="size-4" />Importer un document</Button>
-          <Button onClick={() => setEditing(blankQuestion(courses[0]?.id ?? ''))} disabled={!courses.length}><Plus className="size-4" />Nouvelle question</Button>
+          <Button variant="outline-gray" onClick={() => setImporting(true)}><FileUp className="size-4" />Importer un document</Button>
+          <Button onClick={create}><Plus className="size-4" />Nouvelle question</Button>
         </>} />
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row">
-        <label className="relative flex-1">
-          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-gray-400" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} className="input pl-9" placeholder="Rechercher une question" />
-        </label>
-        <select value={course} onChange={(e) => setCourse(e.target.value)} className="input sm:w-64"><option value="">Toutes les formations</option>{courses.map((c) => <option key={c.id} value={c.slug}>{c.title}</option>)}</select>
-        <select value={type} onChange={(e) => setType(e.target.value)} className="input sm:w-56"><option value="">Tous les types</option>{Object.entries(QUESTION_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+
+      <div className="no-scrollbar -mx-4 mb-5 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0" role="tablist" aria-label="Utilisation des questions">
+        {tabs.map((t) => (
+          <button key={t.key} type="button" role="tab" aria-selected={active.key === t.key} onClick={() => { setTab(t.key); setQ('') }} title={t.title}
+            className={cx('flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition',
+              active.key === t.key ? 'border-brand-600 bg-brand-600 text-white shadow-sm' : 'border-gray-300 bg-white text-gray-700 hover:border-brand-300 hover:text-brand-700')}>
+            {t.key === 'exam' ? <ShieldCheck className="size-4" /> : <BookOpen className="size-4" />}
+            {t.label}
+            <span className={cx('rounded-full px-2 text-xs', active.key === t.key ? 'bg-white/20' : 'bg-gray-100 text-gray-600')}>{t.count}</span>
+          </button>
+        ))}
       </div>
-      <Async state={state}>
-        {(list) =>
-          list.length ? (
-            <Paginated items={list} resetKey={[course, type, q].join('|')}>{(page) => (
-            <div className="card divide-y divide-gray-100">
-              {page.map((x) => (
-                <div key={x.id} className="flex items-start gap-4 p-4">
-                  <Library className="mt-0.5 size-5 shrink-0 text-gray-400" />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold">{x.text}</p>
-                    <div className="mt-1.5 flex flex-wrap gap-2">
-                      <Badge tone="blue">{QUESTION_TYPES[x.type]}</Badge>
-                      <Badge>{x.course.title}</Badge>
-                      <Badge tone={x.module ? 'gold' : 'green'}>{x.module ? `Quiz : ${x.module.title}` : 'Examen final'}</Badge>
-                      <Badge>{x.points} pt</Badge>
-                    </div>
-                  </div>
-                  <button onClick={() => setEditing({
-                    id: x.id, courseId: x.course.id, moduleId: x.module?.id ?? '', type: x.type, text: x.text,
-                    options: x.options.length ? x.options : ['', '', '', ''], correct: x.correct.length ? x.correct : [0],
-                    accepted: x.accepted.length ? x.accepted : [''], points: x.points,
-                  })} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100" aria-label="Modifier"><Pencil className="size-4" /></button>
-                  <button onClick={() => remove(x)} className="rounded-lg p-2 text-gray-500 hover:bg-red-50 hover:text-red-600" aria-label="Supprimer"><Trash2 className="size-4" /></button>
-                </div>
-              ))}
-            </div>
-            )}</Paginated>
-          ) : (
-            <EmptyState icon={Library} title="Aucune question" text="Ajoutez des questions pour composer vos examens." />
-          )
-        }
-      </Async>
+
+      <div className="card overflow-hidden">
+        <div className="flex flex-col gap-3 border-b border-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div>
+            <h2 className="text-lg font-bold">{active.key === 'exam' ? 'Examen final' : `Quiz – ${active.label} : ${active.title}`}</h2>
+            <p className="text-sm text-gray-500">
+              {plural(active.count, 'question')} · {plural(points, 'point')}
+              {active.key === 'exam' ? ' · donne droit au certificat' : ' · entraînement, non certifiant'}
+            </p>
+          </div>
+          {active.count > 5 && (
+            <label className="relative sm:w-72">
+              <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-gray-400" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} className="input pl-9" placeholder="Rechercher dans cette liste" />
+            </label>
+          )}
+        </div>
+        <Async state={state}>
+          {() =>
+            shown.length ? (
+              <Paginated items={shown} resetKey={`${active.key}|${q}`}>{(page) => (
+                <ol className="divide-y divide-gray-100">
+                  {page.map((x) => (
+                    <li key={x.id} className="flex items-start gap-3 p-4 sm:gap-4 sm:px-5">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-sm font-bold text-gray-600">{list.filter(inTab).indexOf(x) + 1}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold">{x.text}</p>
+                        <p className="mt-1 flex items-start gap-1.5 text-sm text-brand-800">
+                          <Check className="mt-0.5 size-4 shrink-0" /><span><span className="text-gray-500">Bonne réponse :</span> {answerOf(x) || '—'}</span>
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <Badge tone="blue">{QUESTION_TYPES[x.type]}</Badge>
+                          <Badge>{plural(x.points, 'pt')}</Badge>
+                        </div>
+                      </div>
+                      <button onClick={() => edit(x)} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100" aria-label="Modifier"><Pencil className="size-4" /></button>
+                      <button onClick={() => remove(x)} className="rounded-lg p-2 text-gray-500 hover:bg-red-50 hover:text-red-600" aria-label="Supprimer"><Trash2 className="size-4" /></button>
+                    </li>
+                  ))}
+                </ol>
+              )}</Paginated>
+            ) : term ? (
+              <p className="p-8 text-center text-gray-600">Aucune question ne contient « {q.trim()} ».</p>
+            ) : (
+              <EmptyState icon={Library} title={active.key === 'exam' ? "Pas encore de question d'examen" : 'Pas encore de question pour ce quiz'}
+                text="Ajoutez-les une par une ou importez un document Word / PDF."
+                action={<Button onClick={create}><Plus className="size-4" />Ajouter une question</Button>} />
+            )
+          }
+        </Async>
+      </div>
+
       <Modal open={!!editing} onClose={() => setEditing(null)} title={editing?.id ? 'Modifier la question' : 'Nouvelle question'} size="lg"
         footer={<><Button variant="outline-gray" onClick={() => setEditing(null)}>Annuler</Button><Button type="submit" form="question-form">Enregistrer</Button></>}>
         {editing && (
           <QuestionForm key={editing.id ?? 'new'} initial={editing} courses={courses}
-            onSaved={() => { setEditing(null); state.reload(); setToast('Question enregistrée') }} />
+            onSaved={() => { setEditing(null); reload(); setToast('Question enregistrée') }} />
         )}
       </Modal>
-      <ImportQuestionsModal open={importing} onClose={() => setImporting(false)} courses={courses}
-        onImported={(r) => { state.reload(); setToast(`${r.created} question(s) importée(s)${r.addedToExam ? ' et ajoutée(s) à l’examen' : ''}`) }} />
+      <ImportQuestionsModal key={course.id} open={importing} onClose={() => setImporting(false)} courses={courses} fixedCourse={course}
+        onImported={(r) => { reload(); setToast(`${r.created} question(s) importée(s)${r.addedToExam ? ' et ajoutée(s) à l’examen' : ''}`) }} />
       <Toast message={toast} onDone={() => setToast('')} />
     </>
   )

@@ -2,6 +2,7 @@ package tg.cdej.aluni.service;
 
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
+import com.google.zxing.client.j2se.MatrixToImageConfig;
 import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
@@ -33,28 +35,36 @@ import tg.cdej.aluni.dto.LearningDtos.CertificateDto;
 
 /**
  * Génère le certificat au format PDF (A4 paysage), avec la même mise en page que l'aperçu du site
- * (components/Certificate.jsx) : cadre vert foncé, bandeau en dégradé, sceau de certification, corps aligné à gauche,
+ * (components/Certificate.jsx) : cadre, bandeau en dégradé avec liseré jaune, logo officiel, sceau de certification, corps aligné à gauche,
  * signature numérique et QR code de vérification.
  */
 @Service
 public class CertificatePdfService {
 
-    /** Couleurs du bandeau (4 étapes du dégradé), du texte du sceau et de son accent. */
-    private record Palette(Color[] band, Color accent, Color seal) {
+    /**
+     * Couleurs d'un modèle (mêmes valeurs que TEMPLATES dans Certificate.jsx) : bandeau (4 étapes du dégradé), liseré
+     * jaune et points du sceau, anneaux et texte haut du sceau, texte bas du sceau, cadre (clair, foncé) et QR code.
+     */
+    private record Palette(Color[] band, Color stripe, Color accent, Color seal, Color frameLight, Color frameDark, int qr) {
     }
 
     private static final Map<String, Palette> TEMPLATES = Map.of(
-            "classique", new Palette(colors(0x07210F, 0x16592B, 0x258A41, 0xF26A1B), new Color(0x16592B), new Color(0xF26A1B)),
-            "vert", new Palette(colors(0x07210F, 0x134725, 0x1A6F33, 0x45A660), new Color(0x16592B), new Color(0x258A41)),
-            "flamme", new Palette(colors(0x0F3A1F, 0xB4400E, 0xF26A1B, 0xFB8A3C), new Color(0xB4400E), new Color(0xF26A1B)));
+            "classique", new Palette(colors(0x0F1D38, 0x1B335D, 0x244A8A, 0x3A6CB8), new Color(0xFFDA00), new Color(0x2C59A5),
+                    new Color(0x946F00), new Color(0x1F3D71), new Color(0x0F1D38), 0x1B335D),
+            "vert", new Palette(colors(0x07210F, 0x134725, 0x1A6F33, 0x45A660), new Color(0xFFDA00), new Color(0x16592B),
+                    new Color(0x1A6F33), new Color(0x134725), new Color(0x07210F), 0x0F3A1F),
+            "flamme", new Palette(colors(0x070F22, 0x0F1D38, 0x1B335D, 0x244A8A), new Color(0xD4A72C), new Color(0x1B335D),
+                    new Color(0x946F00), new Color(0x1B335D), new Color(0x070F22), 0x0F1D38));
 
-    private static final Color FRAME_LIGHT = new Color(0x134725);
-    private static final Color FRAME_DARK = new Color(0x07210F);
-    private static final Color PAPER = new Color(0xF7F8F7);
-    private static final Color INK = new Color(0x1B1F1D);
-    private static final Color MUTED = new Color(0x5B625E);
-    private static final Color DOTTED = new Color(0xC5CBC7);
-    private static final Color FAINT = new Color(0x8A918D);
+    /** Proportions du logo officiel (viewBox 444.14 × 147.88) et de son icône (viewBox 131 × 150). */
+    private static final float LOGO_RATIO = 444.14f / 147.88f;
+    private static final float ICON_RATIO = 131f / 150f;
+
+    private static final Color PAPER = new Color(0xF7F8FA);
+    private static final Color INK = new Color(0x161B26);
+    private static final Color MUTED = new Color(0x5B6270);
+    private static final Color DOTTED = new Color(0xC5CAD3);
+    private static final Color FAINT = new Color(0x8A909C);
 
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.FRENCH);
 
@@ -79,19 +89,17 @@ public class CertificatePdfService {
             float h = page.getHeight();
             float u = w / 100f; // 1 % de la largeur, l'équivalent du « cqw » de l'aperçu
 
-            BaseFont light = font("PlusJakartaSans-Light.ttf");
             BaseFont regular = font("PlusJakartaSans-Regular.ttf");
             BaseFont semibold = font("PlusJakartaSans-SemiBold.ttf");
             BaseFont bold = font("PlusJakartaSans-Bold.ttf");
             BaseFont extrabold = font("PlusJakartaSans-ExtraBold.ttf");
             BaseFont script = font("GreatVibes-Regular.ttf");
-            byte[] logoBytes;
-            try (InputStream logo = new ClassPathResource("static/logo-cdej.jpg").getInputStream()) {
-                logoBytes = logo.readAllBytes();
-            }
+            byte[] logoBytes = resource("static/aluni-logo-white.png");
+            byte[] iconBytes = resource("static/aluni-icon.png");
+            byte[] cdejBytes = resource("static/logo-cdej.jpg");
 
-            // ---- Cadre vert foncé et feuille claire
-            fillGradient(writer, cb, 0, 0, w, h, new Color[] { FRAME_LIGHT, FRAME_DARK }, true);
+            // ---- Cadre et feuille claire
+            fillGradient(writer, cb, 0, 0, w, h, new Color[] { p.frameLight(), p.frameDark() }, true);
             float m = 2.2f * u;
             float x0 = m, y0 = m, iw = w - 2 * m, ih = h - 2 * m;
             cb.setColorFill(PAPER);
@@ -115,41 +123,45 @@ public class CertificatePdfService {
             }
             cb.fill();
             cb.restoreState();
+            // Liseré jaune « lumière » au bas du bandeau
+            cb.setColorFill(p.stripe());
+            cb.rectangle(x0, bandY, iw, 0.6f * u);
+            cb.fill();
 
-            // ---- En-tête du bandeau : logo, ALuNI et nom de l'Académie, puis CDEJ
+            // ---- En-tête du bandeau : logo officiel (version blanche), puis logo du CDEJ et son code
             float left = x0 + iw * 0.13f;
             float midBand = bandY + bandH / 2;
-            float logoR = 3.1f * u;
-            cb.setColorFill(Color.WHITE);
-            cb.circle(left + logoR, midBand, logoR);
-            cb.fill();
+            float logoH = 9f * u;
+            float logoW = logoH * LOGO_RATIO;
             Image logo = Image.getInstance(logoBytes);
-            logo.scaleToFit(logoR * 1.75f, logoR * 1.75f);
-            logo.setAbsolutePosition(left + logoR - logo.getScaledWidth() / 2, midBand - logo.getScaledHeight() / 2);
+            logo.scaleAbsolute(logoW, logoH);
+            logo.setAbsolutePosition(left, midBand - logoH / 2);
+            cb.addImage(logo);
+
+            // Logo du CDEJ dans une pastille blanche (comme l'aperçu : 6,2 de diamètre, marge intérieure 0,35)
+            float cdejR = 3.1f * u;
+            float cdejCx = left + logoW + 3.5f * u + cdejR;
+            cb.setColorFill(Color.WHITE);
+            cb.circle(cdejCx, midBand, cdejR);
+            cb.fill();
+            Image cdej = Image.getInstance(cdejBytes);
+            float inner = 2 * cdejR - 0.7f * u;
+            cdej.scaleToFit(inner, inner);
+            cdej.setAbsolutePosition(cdejCx - cdej.getScaledWidth() / 2, midBand - cdej.getScaledHeight() / 2);
             cb.saveState();
-            cb.circle(left + logoR, midBand, logoR * 0.9f);
+            cb.circle(cdejCx, midBand, cdejR - 0.35f * u);
             cb.clip();
             cb.newPath();
-            cb.addImage(logo);
+            cb.addImage(cdej);
             cb.restoreState();
-
-            float tx = left + 2 * logoR + 1.2f * u;
-            float brand = 3f * u;
-            float bx = tx;
-            bx += text(cb, extrabold, brand, Color.WHITE, bx, midBand - 0.7f * u, "ALu", Element.ALIGN_LEFT, TIGHT);
-            bx += text(cb, extrabold, brand, new Color(0xFFB27A), bx, midBand - 0.7f * u, "N", Element.ALIGN_LEFT, TIGHT);
-            bx += text(cb, extrabold, brand, Color.WHITE, bx, midBand - 0.7f * u, "I", Element.ALIGN_LEFT, TIGHT);
-            String academyName = settings.get("academy.name");
-            float nameW = text(cb, light, 1.15f * u, Color.WHITE, tx, midBand - 2.5f * u, academyName, Element.ALIGN_LEFT);
-            float sx = Math.max(tx + nameW, bx) + 3.5f * u;
-            text(cb, extrabold, 2.8f * u, Color.WHITE, sx, midBand - 1.45f * u, "CDEJ " + settings.get("academy.code"),
-                    Element.ALIGN_LEFT, TIGHT);
+            text(cb, extrabold, 2.8f * u, Color.WHITE, cdejCx + cdejR + 1.2f * u, midBand - 1.45f * u,
+                    "CDEJ " + settings.get("academy.code"), Element.ALIGN_LEFT, TIGHT);
 
             // ---- Sceau de certification, à cheval sur le bandeau
             float sealR = 8.5f * u;
             float sealCx = x0 + iw * 0.91f - sealR;
             float sealCy = bandY;
-            seal(cb, p, bold, extrabold, logoBytes, sealCx, sealCy, sealR);
+            seal(cb, p, bold, extrabold, iconBytes, sealCx, sealCy, sealR);
 
             // ---- Corps aligné à gauche
             boolean competence = "competence".equals(c.type());
@@ -196,7 +208,7 @@ public class CertificatePdfService {
             // QR code de vérification (en bas à droite)
             float qrSize = 7.5f * u;
             float qrX = x0 + iw * 0.94f - qrSize;
-            Image qr = Image.getInstance(qrPng(c.verifyUrl()));
+            Image qr = Image.getInstance(qrPng(c.verifyUrl(), p.qr()));
             qr.scaleAbsolute(qrSize, qrSize);
             cb.setColorFill(Color.WHITE);
             cb.setColorStroke(new Color(0xE3E7E4));
@@ -230,8 +242,8 @@ public class CertificatePdfService {
         return out.toByteArray();
     }
 
-    /** Sceau rond : « ACADÉMIE LUMIÈRE DU NUMÉRIQUE » en haut, « CERTIFICATION » en bas, logo au centre. */
-    private static void seal(PdfContentByte cb, Palette p, BaseFont bold, BaseFont extrabold, byte[] logoBytes, float cx,
+    /** Sceau rond : le nom officiel, « ACADÉMIE LUMIÈRE DU NUMÉRIQUE » en haut et « ET DE L’INNOVATION » en bas, icône ALuNI au centre. */
+    private static void seal(PdfContentByte cb, Palette p, BaseFont bold, BaseFont extrabold, byte[] iconBytes, float cx,
             float cy, float r)
             throws Exception {
         float s = r / 100f; // même géométrie que le SVG de l'aperçu (viewBox 200)
@@ -247,23 +259,26 @@ public class CertificatePdfService {
         cb.stroke();
 
         arcText(cb, bold, 11.5f * s, 1.2f * s, p.accent(), cx, cy, 66 * s, "ACADÉMIE LUMIÈRE DU NUMÉRIQUE", true);
-        arcText(cb, extrabold, 13f * s, 2.5f * s, p.seal(), cx, cy, 80 * s, "CERTIFICATION", false);
-        cb.setColorFill(p.seal());
+        arcText(cb, extrabold, 11.5f * s, 1.5f * s, p.seal(), cx, cy, 80 * s, "ET DE L’INNOVATION", false);
+        cb.setColorFill(p.stripe());
         for (int side : new int[] { -1, 1 }) {
             double a = Math.toRadians(side < 0 ? 208 : 332);
             cb.circle(cx + (float) (75 * s * Math.cos(a)), cy + (float) (75 * s * Math.sin(a)), 2.6f * s);
         }
         cb.fill();
 
-        cb.saveState();
-        cb.circle(cx, cy, 40 * s);
-        cb.clip();
-        cb.newPath();
-        Image logo = Image.getInstance(logoBytes);
-        logo.scaleAbsolute(80 * s, 80 * s);
-        logo.setAbsolutePosition(cx - 40 * s, cy - 40 * s);
-        cb.addImage(logo);
-        cb.restoreState();
+        // Icône centrée : 64 de large, proportions conservées (comme l'aperçu)
+        Image icon = Image.getInstance(iconBytes);
+        float iw = 64 * s, ih = iw / ICON_RATIO;
+        icon.scaleAbsolute(iw, ih);
+        icon.setAbsolutePosition(cx - iw / 2, cy - ih / 2);
+        cb.addImage(icon);
+    }
+
+    private static byte[] resource(String path) throws IOException {
+        try (InputStream in = new ClassPathResource(path).getInputStream()) {
+            return in.readAllBytes();
+        }
     }
 
     /**
@@ -400,11 +415,11 @@ public class CertificatePdfService {
         return out;
     }
 
-    private static byte[] qrPng(String url) throws Exception {
+    private static byte[] qrPng(String url, int rgb) throws Exception {
         BitMatrix matrix = new QRCodeWriter().encode(url, BarcodeFormat.QR_CODE, 300, 300,
                 Map.of(EncodeHintType.MARGIN, 1));
         ByteArrayOutputStream png = new ByteArrayOutputStream();
-        MatrixToImageWriter.writeToStream(matrix, "PNG", png);
+        MatrixToImageWriter.writeToStream(matrix, "PNG", png, new MatrixToImageConfig(0xFF000000 | rgb, 0xFFFFFFFF));
         return png.toByteArray();
     }
 }

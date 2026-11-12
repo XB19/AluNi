@@ -23,6 +23,7 @@
         <openpdf.version>1.4.2</openpdf.version>
         <zxing.version>3.5.3</zxing.version>
         <pdfbox.version>3.0.5</pdfbox.version>
+        <anthropic.version>3.3.0</anthropic.version>
     </properties>
 
     <dependencies>
@@ -108,6 +109,12 @@
             <version>${zxing.version}</version>
         </dependency>
 
+        <!-- Assistant de la plateforme : SDK officiel de l'API Claude -->
+        <dependency>
+            <groupId>com.anthropic</groupId>
+            <artifactId>anthropic-java</artifactId>
+            <version>${anthropic.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

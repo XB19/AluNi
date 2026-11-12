@@ -191,8 +191,27 @@ public class AdminService {
     private void sendCredentials(User u, String password) {
         String text = "Bienvenue sur ALuNI ! Identifiant : " + (u.getPhone() != null ? u.getPhone() : u.getEmail())
                 + " – mot de passe provisoire : " + password + ". Changez-le dès votre première connexion.";
-        if (u.getPhone() != null) sender.sendSms(u.getPhone(), text);
-        else sender.sendEmail(u.getEmail(), "Votre compte ALuNI", text);
+        sender.notifyUser(u, "Votre compte ALuNI", text, password);
+    }
+
+    /**
+     * Réinitialisation par l'administration (utilisateur sans accès à son téléphone ni à son e-mail) : un mot de passe
+     * provisoire est créé, affiché à l'administrateur et envoyé à l'utilisateur si un canal est disponible.
+     */
+    @Transactional
+    public CreatedAccount resetPassword(User admin, Long id) {
+        User u = users.findById(id).orElseThrow(() -> ApiException.notFound("Utilisateur introuvable."));
+        if (u.getId().equals(admin.getId())) {
+            throw ApiException.badRequest("Changez votre propre mot de passe depuis « Paramètres du compte ».");
+        }
+        String password = AuthService.temporaryPassword();
+        u.setPasswordHash(encoder.encode(password));
+        users.save(u);
+        sender.notifyUser(u, "Votre nouveau mot de passe ALuNI",
+                "ALuNI : votre mot de passe a été réinitialisé par l'Académie. Mot de passe provisoire : " + password
+                        + ". Changez-le dès votre connexion.",
+                password);
+        return new CreatedAccount(u.getId(), u.fullName(), Texts.display(u.getPhone()), u.getEmail(), password);
     }
 
     @Transactional

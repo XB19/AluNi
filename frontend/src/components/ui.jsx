@@ -7,7 +7,7 @@ export const cx = (...c) => c.filter(Boolean).join(' ')
 
 const BTN_VARIANTS = {
   primary: 'bg-brand-600 text-white hover:bg-brand-700 shadow-sm',
-  flame: 'bg-flame-500 text-white hover:bg-flame-600 shadow-sm',
+  flame: 'bg-flame-400 text-ink hover:bg-flame-500 shadow-sm',
   secondary: 'bg-brand-50 text-brand-700 hover:bg-brand-100',
   outline: 'border border-brand-600 text-brand-700 hover:bg-brand-50',
   white: 'bg-white text-brand-800 hover:bg-brand-50 shadow-sm',

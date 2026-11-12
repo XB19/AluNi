@@ -214,10 +214,11 @@ export default function CourseDetail() {
               {course.modules.map((m, i) => <Module key={m.id} module={m} index={i} defaultOpen={i === 0} />)}
               {course.exam && (
                 <div className="flex items-center gap-4 bg-flame-50 px-5 py-4">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-flame-500 text-white"><ShieldCheck className="size-5" /></span>
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-flame-400 text-ink"><ShieldCheck className="size-5" /></span>
                   <div>
                     <p className="font-bold">Examen final</p>
-                    <p className="text-sm text-gray-600">{course.exam.questionCount} questions · {course.exam.durationMin} min · réussite à {course.exam.passMark}/100 – ouvre droit au certificat</p>
+                    <p className="text-sm text-gray-600">{course.exam.questionCount} questions · {course.exam.durationMin} min · réussite à {course.exam.passMark}/100 · corrigé automatiquement – ouvre droit au certificat</p>
+                    <p className="mt-1 text-xs text-gray-500">En ligne : ouvert dès les modules terminés. En salle : lors de la session programmée par le formateur.</p>
                   </div>
                 </div>
               )}
@@ -253,7 +254,7 @@ export default function CourseDetail() {
                 </div>
               ))}
             </div>
-            <p className="mt-4 text-sm text-gray-600">Chaque certificat comporte un numéro unique, une signature numérique et un QR code permettant de vérifier son authenticité en ligne.</p>
+            <p className="mt-4 text-sm text-gray-600">Téléchargeable en PDF depuis votre espace, chaque document comporte un numéro unique, une signature numérique et un QR code permettant de vérifier son authenticité en ligne.</p>
           </section>
         </div>
 
@@ -265,10 +266,11 @@ export default function CourseDetail() {
               <p className="mt-1 text-lg font-bold">{course.title}</p>
               <EnrollButton course={course} enrollment={enrollment} onEnrolled={onEnrolled} size="md" className="mt-4 w-full" />
               <ul className="mt-5 space-y-2.5 text-sm text-gray-700">
+                <li className="flex gap-2"><Check className="size-4 text-brand-600" />En ligne ou en salle à l'Académie</li>
                 <li className="flex gap-2"><Check className="size-4 text-brand-600" />Accès sur ordinateur et téléphone</li>
                 <li className="flex gap-2"><Check className="size-4 text-brand-600" />Progression enregistrée automatiquement</li>
                 <li className="flex gap-2"><Check className="size-4 text-brand-600" />Quiz d'entraînement à chaque module</li>
-                <li className="flex gap-2"><Check className="size-4 text-brand-600" />Certificat vérifiable en ligne</li>
+                <li className="flex gap-2"><Check className="size-4 text-brand-600" />Certificat PDF vérifiable en ligne</li>
               </ul>
             </div>
           </div>

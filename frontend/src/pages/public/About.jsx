@@ -23,13 +23,18 @@ export default function About() {
             <p className="mb-3 text-sm font-bold tracking-wide text-flame-400 uppercase">À propos de l'Académie</p>
             <h1 className="text-3xl leading-tight font-extrabold sm:text-5xl">Allumer la lumière du numérique dans la vie de chaque jeune</h1>
             <p className="mt-5 max-w-xl text-lg text-brand-100">
-              L'{academy.name} (ALuNI) est une initiative du {academy.center}, centre {academy.code}. Elle forme les jeunes aux
-              compétences numériques dans une salle informatique équipée, et désormais en ligne.
+              L'{academy.name} ({academy.short}) est une initiative du {academy.center}, centre {academy.code}. Elle forme les
+              jeunes aux compétences numériques en salle, dans un espace informatique équipé, et en ligne sur sa plateforme, puis
+              certifie leurs acquis par des certificats vérifiables.
             </p>
           </div>
-          <div className="animate-zoom-in mx-auto rounded-3xl bg-white p-6 shadow-2xl transition duration-500 hover:rotate-2" style={{ '--delay': '150ms' }}>
-            <img src={logo} alt="Logo du CDEJ Lumière de Kpévé" className="size-56 object-contain sm:size-64" />
-          </div>
+          {/* Le CDEJ porte le projet : son logo figure ici, celui d'ALuNI partout ailleurs */}
+          <figure className="animate-zoom-in mx-auto rounded-3xl bg-white p-6 text-center shadow-2xl transition duration-500 hover:rotate-2" style={{ '--delay': '150ms' }}>
+            <img src={logo} alt={`Logo du ${academy.center}`} className="mx-auto size-56 object-contain sm:size-64" />
+            <figcaption className="mt-3 text-sm font-semibold text-gray-600">
+              Un projet porté par le<br /><span className="text-brand-700">{academy.center} ({academy.code})</span>
+            </figcaption>
+          </figure>
         </div>
       </section>
 
@@ -54,6 +59,7 @@ export default function About() {
             <div className="space-y-4 text-lg leading-relaxed text-gray-700">
               <p>Le CDEJ {academy.code} accompagne depuis des années les enfants et les jeunes de Kpévé et ses environs. Face à l'importance croissante du numérique, le centre a équipé une salle informatique dédiée à leur formation.</p>
               <p>Pour aller plus loin, l'Académie ouvre aujourd'hui sa plateforme aux jeunes des autres CDEJ et à toute personne souhaitant se former ou faire certifier ses compétences.</p>
+              <p>Chaque formation se suit en ligne, à son rythme, ou en salle avec le formateur. L'examen final est corrigé automatiquement et la réussite donne droit à un certificat que tout employeur peut vérifier.</p>
             </div>
           </Reveal>
           <div className="grid grid-cols-2 gap-4">
@@ -69,7 +75,7 @@ export default function About() {
 
       {trainers.length > 0 && (
         <section className="container-page py-16">
-          <Reveal><SectionTitle eyebrow="L'équipe" title="Les formateurs de l'Académie" subtitle="Des professionnels passionnés, validés par l'Académie." /></Reveal>
+          <Reveal><SectionTitle eyebrow="L'équipe" title="Les formateurs de l'Académie" subtitle="Des professionnels passionnés, choisis par l'Académie pour accompagner les jeunes." /></Reveal>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {trainers.map((t, i) => (
               <Reveal key={t.id} delay={(i % 4) * 100} className="group rounded-2xl border border-gray-200 p-6 text-center transition duration-300 hover:-translate-y-1 hover:shadow-lg">
@@ -90,7 +96,7 @@ export default function About() {
             {[
               { icon: Lightbulb, title: 'Apprendre en faisant', text: 'Chaque notion est suivie d’un exercice pratique.' },
               { icon: Users, title: 'Pour tous les niveaux', text: 'On part de zéro : aucune connaissance préalable n’est exigée pour débuter.' },
-              { icon: Flame, title: 'Encourager', text: 'Petites victoires, progression visible et certificats qui valorisent les efforts.' },
+              { icon: Flame, title: 'Encourager', text: 'Quiz corrigés tout de suite, progression visible et certificats qui valorisent les efforts.' },
             ].map((b, i) => (
               <Reveal key={b.title} delay={i * 120} className="group rounded-2xl bg-white p-6 transition duration-300 hover:-translate-y-1 hover:shadow-md">
                 <b.icon className="size-7 text-flame-500 transition duration-300 group-hover:scale-110" />

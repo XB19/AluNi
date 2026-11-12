@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { ChevronDown, MessageCircle } from 'lucide-react'
+import { ChevronDown, MessageCircle, MessageCircleQuestion } from 'lucide-react'
+import { openAssistant } from '../../components/Assistant'
 import { useApi } from '../../api/useApi'
 import { Async, Button, cx } from '../../components/ui'
 
@@ -19,10 +20,11 @@ export default function Faq() {
           const list = faq.filter((f) => tag === 'Toutes' || f.tag === tag)
           return (
             <>
-              <div className="no-scrollbar -mx-4 mt-8 flex gap-2 overflow-x-auto px-4">
+              {/* Les filtres passent à la ligne : aucun n'est coupé, quelle que soit la largeur d'écran */}
+              <div className="mt-8 flex flex-wrap gap-2">
                 {tags.map((t) => (
-                  <button key={t} onClick={() => { setTag(t); setOpen(0) }}
-                    className={cx('shrink-0 rounded-full border px-4 py-2 text-sm font-semibold', tag === t ? 'border-brand-600 bg-brand-600 text-white' : 'border-gray-300 text-gray-700')}>
+                  <button key={t} onClick={() => { setTag(t); setOpen(0) }} aria-pressed={tag === t}
+                    className={cx('rounded-full border px-4 py-2 text-sm font-semibold transition', tag === t ? 'border-brand-600 bg-brand-600 text-white' : 'border-gray-300 text-gray-700 hover:border-brand-300 hover:text-brand-700')}>
                     {t}
                   </button>
                 ))}
@@ -46,7 +48,11 @@ export default function Faq() {
       <div className="mt-10 flex flex-col items-center gap-3 rounded-2xl bg-brand-50 p-8 text-center">
         <MessageCircle className="size-8 text-brand-600" />
         <p className="text-lg font-bold">Vous ne trouvez pas votre réponse ?</p>
-        <Button to="/contact">Contactez-nous</Button>
+        <p className="text-gray-600">Posez votre question à l'assistant : il vous répond tout de suite.</p>
+        <div className="flex flex-wrap justify-center gap-3">
+          <Button onClick={() => openAssistant()}><MessageCircleQuestion className="size-5" />Demander à l'assistant</Button>
+          <Button to="/contact" variant="outline-gray">Contacter l'Académie</Button>
+        </div>
       </div>
     </div>
   )

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { CheckCircle2, Clock, Mail, MapPin, Phone, Send } from 'lucide-react'
 import { api } from '../../api/client'
 import { useAcademy } from '../../context/SettingsContext'
@@ -12,7 +13,9 @@ export default function Contact() {
   const [sent, setSent] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
-  const [f, setF] = useState(EMPTY)
+  const [params] = useSearchParams()
+  // « Devenir formateur » : les comptes formateurs sont créés par l'administration après prise de contact
+  const [f, setF] = useState(() => (params.get('sujet') === 'formateur' ? { ...EMPTY, subject: 'Devenir formateur' } : EMPTY))
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
 
   const submit = async (e) => {
