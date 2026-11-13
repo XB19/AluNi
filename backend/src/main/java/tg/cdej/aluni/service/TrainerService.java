@@ -228,10 +228,8 @@ public class TrainerService {
         c.setPrerequisites(clean(r.prerequisites()));
         c.setObjectives(clean(r.objectives()));
         c.setSkills(clean(r.skills()));
-        List<String> certs = clean(r.certTypes()).stream()
-                .map(t -> Codes.require(CertType.class, t, "certification").name()).distinct().collect(Collectors.toList());
-        if (certs.isEmpty()) throw ApiException.badRequest("Choisissez au moins un type de certification.");
-        c.setCertTypes(certs);
+        // Un seul document délivré par l'Académie : le certificat de compétence, après réussite de l'examen final
+        c.setCertTypes(List.of(CertType.COMPETENCE.name()));
         c.setAccess(r.access() == null ? AccessMode.LIBRE : Codes.require(AccessMode.class, r.access(), "accès"));
         c.setImageUrl(r.image());
         c.setSupportUrl(r.support() == null || r.support().isBlank() ? null : r.support());
@@ -283,11 +281,10 @@ public class TrainerService {
             throw ApiException.forbidden("Cette formation a été archivée par l'administration : contactez l'Académie pour la republier.");
         }
         if (c.getModules().isEmpty() || c.lessonCount() == 0) throw ApiException.badRequest("Ajoutez au moins un module et une leçon.");
-        if (c.delivers(CertType.COMPETENCE)) {
-            Exam exam = exams.findByCourse(c).orElse(null);
-            if (exam == null || exam.getQuestions().isEmpty()) {
-                throw ApiException.badRequest("Configurez l'examen final et ses questions avant de publier.");
-            }
+        // Toute formation a un examen final : c'est sa réussite qui donne le certificat de compétence
+        Exam exam = exams.findByCourse(c).orElse(null);
+        if (exam == null || exam.getQuestions().isEmpty()) {
+            throw ApiException.badRequest("Configurez l'examen final et ses questions avant de publier.");
         }
         c.setStatus(CourseStatus.PUBLIEE);
         if (c.getPublishedAt() == null) c.setPublishedAt(Instant.now());

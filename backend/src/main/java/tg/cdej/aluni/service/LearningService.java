@@ -212,11 +212,13 @@ public class LearningService {
                     !questions.findByModuleOrderByIdAsc(m).isEmpty(), ls));
         }
         int pct = percent(done.size(), course.lessonCount());
-        Long examId = course.delivers(CertType.COMPETENCE) ? exams.findByCourse(course).map(e -> e.getId()).orElse(null) : null;
+        Long examId = exams.findByCourse(course).map(e -> e.getId()).orElse(null);
+        // Plus d'attestation de suivi : le seul document est le certificat de compétence, obtenu à l'examen final.
+        // (Une attestation délivrée avant ce changement reste consultable dans « Mes certificats ».)
         String attestationCode = certificates.findByUserAndCourseAndType(user, course, CertType.ATTESTATION)
                 .map(Certificate::getCode).orElse(null);
         return new LearnView(mapper.summary(course), Codes.of(enrollment.getMode()), course.getSupportUrl(), view, pct, examId,
-                new AttestationInfo(course.delivers(CertType.ATTESTATION), pct == 100, attestationCode));
+                new AttestationInfo(false, false, attestationCode));
     }
 
     @Transactional
@@ -239,7 +241,6 @@ public class LearningService {
         boolean finished = pct == 100;
         if (finished && enrollment.getCompletedAt() == null) {
             enrollment.setCompletedAt(Instant.now());
-            if (course.delivers(CertType.ATTESTATION)) certificateService.issue(user, course, CertType.ATTESTATION, null, false);
             exams.findByCourse(course).ifPresent(exam -> notifications.notify(user, NotificationType.EXAM,
                     "Prêt pour l'examen final", "Vous avez terminé toutes les leçons de « " + course.getTitle()
                             + " ». L'examen final vous attend !", "/apprenant/examens"));
@@ -294,10 +295,8 @@ public class LearningService {
 
     @Transactional
     public String attestation(User user, String slug) {
-        Course course = course(slug);
-        activeEnrollment(user, course);
-        if (!course.delivers(CertType.ATTESTATION)) throw ApiException.badRequest("Cette formation ne délivre pas d'attestation.");
-        if (progressOf(user, course) < 100) throw ApiException.badRequest("Terminez toutes les leçons pour obtenir l'attestation.");
-        return certificateService.issue(user, course, CertType.ATTESTATION, null, false).getCode();
+        course(slug);
+        throw ApiException.badRequest("L'Académie délivre un certificat de compétence après la réussite de l'examen final : "
+                + "il n'y a plus d'attestation de suivi.");
     }
 }

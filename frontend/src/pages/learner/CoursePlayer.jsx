@@ -340,15 +340,6 @@ export default function CoursePlayer() {
     }
   }
 
-  const getAttestation = async () => {
-    try {
-      const { code } = await api.post(`/me/courses/${slug}/attestation`)
-      navigate(`/apprenant/certificats/${code}`)
-    } catch (e) {
-      setError(e)
-    }
-  }
-
   return (
     <div className="min-h-screen bg-white">
       <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-gray-200 bg-white px-3 sm:px-5">
@@ -363,11 +354,10 @@ export default function CoursePlayer() {
         <button onClick={() => setOutline(true)} className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold lg:hidden">
           <Menu className="size-4" />Sommaire
         </button>
-        {view.attestation.code ? (
+        {/* Plus d'attestation à demander : le certificat s'obtient à l'examen final (une ancienne attestation reste accessible) */}
+        {view.attestation.code && (
           <Button size="sm" variant="secondary" className="hidden sm:inline-flex" to={`/apprenant/certificats/${view.attestation.code}`}><Award className="size-4" />Mon attestation</Button>
-        ) : view.attestation.available && view.attestation.eligible ? (
-          <Button size="sm" variant="secondary" className="hidden sm:inline-flex" onClick={getAttestation}><Award className="size-4" />Obtenir mon attestation</Button>
-        ) : null}
+        )}
       </header>
 
       <div className="lg:grid lg:grid-cols-[340px_1fr]">

@@ -48,9 +48,9 @@ const KEYWORDS = ['Word', 'Excel', 'PowerPoint', 'Python', 'HTML', 'Canva', 'Ré
 
 const QUICK_FILTERS = [
   { label: 'Niveau débutant', to: '/formations?niveau=Débutant' },
-  { label: CERT_TYPES.competence.label, to: '/formations?certif=competence' },
-  { label: CERT_TYPES.attestation.label, to: '/formations?certif=attestation' },
+  { label: 'Niveau intermédiaire', to: '/formations?niveau=Intermédiaire' },
   { label: 'Moins de 15 h', to: '/formations?duree=court' },
+  { label: '15 à 25 h', to: '/formations?duree=moyen' },
 ]
 
 /** Met en gras la partie du titre qui correspond à la saisie. */

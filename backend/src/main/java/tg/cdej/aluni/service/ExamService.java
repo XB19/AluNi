@@ -149,7 +149,7 @@ public class ExamService {
     public List<MyExam> myExams(User user) {
         List<MyExam> result = new ArrayList<>();
         for (Enrollment e : enrollments.findByUserOrderByEnrolledAtDesc(user)) {
-            if (e.getStatus() != EnrollmentStatus.ACTIF || !e.getCourse().delivers(CertType.COMPETENCE)) continue;
+            if (e.getStatus() != EnrollmentStatus.ACTIF) continue;
             exams.findByCourse(e.getCourse()).ifPresent(exam -> {
                 List<ExamAttempt> list = attempts.findByExamAndUserOrderByNumberAsc(exam, user);
                 boolean passed = list.stream().anyMatch(a -> Boolean.TRUE.equals(a.getPassed()));
@@ -373,7 +373,8 @@ public class ExamService {
         attempts.save(a);
 
         Course course = exam.getCourse();
-        if (a.getPassed() && course.delivers(CertType.COMPETENCE)) {
+        // Examen réussi, en ligne comme en salle : certificat de compétence (le seul document délivré)
+        if (a.getPassed()) {
             certificateService.issue(a.getUser(), course, CertType.COMPETENCE, score, exam.isRequiresAdminValidation());
         }
         if (a.getTabSwitches() > 0) {

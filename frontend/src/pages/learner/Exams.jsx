@@ -122,7 +122,7 @@ export default function Exams() {
           items.length ? (
             <div className="space-y-10">{items.map((item) => <ExamCard key={item.exam.id} item={item} />)}</div>
           ) : (
-            <EmptyState icon={ClipboardCheck} title="Aucun examen disponible" text="Les examens apparaissent ici lorsque vous êtes inscrit à une formation qui délivre un certificat de compétence." action={<Button to="/formations">Explorer le catalogue</Button>} />
+            <EmptyState icon={ClipboardCheck} title="Aucun examen disponible" text="Les examens apparaissent ici lorsque vous êtes inscrit à une formation : leur réussite vous donne le certificat de compétence." action={<Button to="/formations">Explorer le catalogue</Button>} />
           )
         }
       </Async>

@@ -32,12 +32,10 @@ Le formateur peut adapter la modalité si besoin.
 
 ## Obtenir un certificat
 pour : visiteur
-mots : obtenir certificat attestation diplome certification avoir recevoir
-Deux documents peuvent être délivrés :
-- **Attestation de suivi** : automatiquement, quand toutes les leçons de la formation sont terminées.
-- **Certificat de compétence** : quand vous réussissez l'examen final (corrigé automatiquement).
+mots : obtenir certificat attestation diplome certification avoir recevoir document
+L'Académie délivre un **certificat de compétence** quand vous **réussissez l'examen final** de la formation, en ligne comme en salle. Terminer les modules ne suffit pas : l'examen, corrigé automatiquement, est obligatoire.
 
-Ils se téléchargent en PDF depuis votre espace et portent un QR code qui permet à un employeur de les [vérifier](/verifier). Pour commencer, [créez votre compte](/inscription) puis choisissez une [formation](/formations).
+Le certificat se télécharge en PDF depuis votre espace et porte un QR code qui permet à un employeur de le [vérifier](/verifier). Pour commencer, [créez votre compte](/inscription) puis choisissez une [formation](/formations).
 
 ## Les formateurs de l'Académie
 pour : visiteur, apprenant
@@ -47,7 +45,7 @@ Les formateurs sont recrutés directement par le CDEJ Lumière de Kpévé. Ils f
 ## Choisir une formation
 pour : visiteur, apprenant
 mots : choisir formation catalogue cours trouver chercher domaine liste programme quelle conseiller
-Le [catalogue](/formations) présente toutes les formations, avec des filtres par domaine, niveau, type de certification et durée. Chaque page de formation détaille le programme, le formateur, l'examen final et la certification. Pour s'inscrire : bouton **S'inscrire gratuitement** (accès immédiat) ou **Demander l'inscription** (validée par l'Académie).
+Le [catalogue](/formations) présente toutes les formations, avec des filtres par domaine, niveau et durée. Chaque page de formation détaille le programme, le formateur, l'examen final et la certification. Pour s'inscrire : bouton **S'inscrire gratuitement** (accès immédiat) ou **Demander l'inscription** (validée par l'Académie).
 
 ## Passer l'examen final
 pour : apprenant
@@ -68,7 +66,7 @@ L'examen est corrigé automatiquement : votre note s'affiche dès la fin, et vou
 ## Télécharger mon certificat
 pour : apprenant
 mots : telecharger certificat attestation pdf imprimer trouver ou voir mon
-Ouvrez [Mes certificats](/apprenant/certificats), puis **Voir / télécharger** sur le document voulu : vous pouvez l'enregistrer en PDF ou l'imprimer. Un certificat marqué **en cours de validation** sera disponible dès que l'Académie l'aura vérifié ; vous recevrez une notification.
+Votre certificat de compétence apparaît dès que vous avez réussi l'examen final. Ouvrez [Mes certificats](/apprenant/certificats), puis **Voir / télécharger** : vous pouvez l'enregistrer en PDF ou l'imprimer. Un certificat marqué **en cours de validation** sera disponible dès que l'Académie l'aura vérifié ; vous recevrez une notification.
 
 ## Inscription en attente
 pour : apprenant
@@ -94,10 +92,10 @@ Ouvrez **Mon profil** dans votre espace : vous y modifiez vos informations, et d
 pour : formateur
 mots : creer publier formation nouvelle cours mettre ligne catalogue rendre visible
 Dans [Mes formations](/formateur/formations), cliquez sur **Nouvelle formation**, puis suivez les onglets :
-1. **Informations** : titre, résumé, description, domaine, niveau, durée, certification délivrée et mode d'inscription (libre ou soumise à validation).
+1. **Informations** : titre, résumé, description, domaine, niveau, durée et mode d'inscription (libre ou soumise à validation).
 2. **Cours en ligne** : modules et leçons (vidéo, texte, fichiers).
 3. **Cours en salle** : support PDF et sessions d'examen en salle.
-4. **Examen final** : paramètres et questions.
+4. **Examen final** (obligatoire) : paramètres et questions. Sa réussite donne le certificat de compétence à l'apprenant.
 5. **Publication** : quand les vérifications sont au vert, cliquez sur **Publier la formation**. Elle apparaît aussitôt dans le catalogue.
 
 ## Ajouter des modules et des leçons

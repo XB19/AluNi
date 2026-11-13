@@ -393,14 +393,14 @@ function Certification() {
         </p>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl bg-gold-100 p-5 transition duration-300 hover:-translate-y-1 hover:shadow-md">
-            <BookOpen className="size-6 text-gold-700" />
-            <h3 className="mt-3 font-bold">Attestation de suivi</h3>
-            <p className="mt-1 text-sm text-gray-700">Délivrée automatiquement quand vous avez terminé toutes les leçons.</p>
+            <ClipboardCheck className="size-6 text-gold-700" />
+            <h3 className="mt-3 font-bold">Un examen final obligatoire</h3>
+            <p className="mt-1 text-sm text-gray-700">En ligne ou en salle, il est corrigé automatiquement : vous connaissez votre résultat tout de suite.</p>
           </div>
           <div className="rounded-2xl bg-brand-50 p-5 transition duration-300 hover:-translate-y-1 hover:shadow-md">
             <ShieldCheck className="size-6 text-brand-700" />
-            <h3 className="mt-3 font-bold">Certificat de compétence</h3>
-            <p className="mt-1 text-sm text-gray-700">Délivré quand vous avez réussi l'examen final de la formation.</p>
+            <h3 className="mt-3 font-bold">Le certificat de compétence</h3>
+            <p className="mt-1 text-sm text-gray-700">Délivré dès que vous réussissez l'examen : c'est le document officiel de l'Académie.</p>
           </div>
         </div>
         <Button to="/verifier" variant="outline" className="mt-7"><BadgeCheck className="size-5" /> Vérifier un certificat</Button>

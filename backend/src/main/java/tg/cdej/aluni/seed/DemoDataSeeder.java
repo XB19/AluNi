@@ -405,7 +405,8 @@ public class DemoDataSeeder implements ApplicationRunner {
         User edem = user("Edem", "Folly", "99876543", "edem.folly@exemple.tg", Role.APPRENANT, ProfileType.PARTICULIER, null, "M", "2001-02-25", "2026-08-28");
 
         // Formations
-        List<CertType> both = List.of(CertType.ATTESTATION, CertType.COMPETENCE);
+        // Un seul document : le certificat de compétence, délivré à la réussite de l'examen final
+        List<CertType> both = List.of(CertType.COMPETENCE);
         List<CertType> comp = List.of(CertType.COMPETENCE);
         Course initiation = course("initiation-informatique", "Initiation à l'informatique", cat.get("bureautique"), Level.DEBUTANT, 20, 4, koffi,
                 both, AccessMode.LIBRE, 4.8, true, false,
@@ -492,7 +493,7 @@ public class DemoDataSeeder implements ApplicationRunner {
                         m("Réseaux", l("Adresse IP et routeur"), l("Partager une connexion", LessonType.VIDEO, "12 min"))),
                 CourseStatus.PUBLIEE, "2026-04-01");
         Course securite = course("securite-en-ligne", "Sécurité en ligne et citoyenneté numérique", cat.get("internet"), Level.DEBUTANT, 8, 2, yao,
-                List.of(CertType.ATTESTATION), AccessMode.LIBRE, 4.9, false, true,
+                comp, AccessMode.LIBRE, 4.9, false, true,
                 "Protégez vos comptes, repérez les arnaques et adoptez un bon comportement sur Internet.",
                 "Mots de passe, arnaques par SMS et WhatsApp, fausses informations, réputation en ligne et respect des autres : tout ce qu'il faut savoir pour utiliser Internet en sécurité.",
                 List.of("Aucun prérequis"),
@@ -512,8 +513,8 @@ public class DemoDataSeeder implements ApplicationRunner {
                         m("Visibilité", l("Créer une page Facebook", LessonType.VIDEO, "12 min"), l("WhatsApp Business", LessonType.VIDEO, "10 min"),
                                 tp("Calendrier de publication", "20 min"))),
                 CourseStatus.PUBLIEE, "2026-04-15");
-        course("powerpoint-presentations", "PowerPoint : réussir ses présentations", cat.get("bureautique"), Level.DEBUTANT, 12, 3, koffi,
-                List.of(CertType.ATTESTATION), AccessMode.LIBRE, 0, false, true,
+        Course powerpoint = course("powerpoint-presentations", "PowerPoint : réussir ses présentations", cat.get("bureautique"), Level.DEBUTANT, 12, 3, koffi,
+                comp, AccessMode.LIBRE, 0, false, true,
                 "Concevez des diaporamas clairs et convaincants pour vos exposés et réunions.",
                 "Apprenez à structurer une présentation, choisir une mise en page lisible, insérer images et graphiques, et présenter avec assurance devant un public.",
                 List.of("Initiation à l'informatique"), List.of("Structurer une présentation", "Créer des diapositives lisibles", "Présenter avec aisance"),
@@ -586,6 +587,22 @@ public class DemoDataSeeder implements ApplicationRunner {
                             List.of(0, 2), List.of(), 2)));
             examByCourse.put(c.getSlug(), exam(c, 15, 5, 60, qs));
         }
+        // Examens rédigés pour les deux formations qui n'en avaient pas (toute formation a désormais un examen final)
+        examByCourse.put(securite.getSlug(), exam(securite, 15, 5, 60, new ArrayList<>(List.of(
+                unique(securite, "Lequel de ces mots de passe est le plus solide ?", List.of("123456", "kossi2006", "Mango!Lomé-2026#Vélo", "motdepasse"), 2),
+                trueFalse(securite, "La double authentification ajoute une protection en plus du mot de passe.", true),
+                unique(securite, "Un SMS annonce : « Vous avez gagné 500 000 F, envoyez votre code secret ». Que faites-vous ?",
+                        List.of("Je réponds vite pour recevoir l'argent", "Je supprime le message sans répondre", "J'envoie le code à un ami"), 1),
+                trueFalse(securite, "Avant de partager une information, il faut vérifier sa source.", true),
+                unique(securite, "Que faut-il éviter de publier sur les réseaux sociaux ?",
+                        List.of("Son adresse et son numéro de téléphone", "La photo d'un paysage", "Un message d'encouragement"), 0)))));
+        examByCourse.put(powerpoint.getSlug(), exam(powerpoint, 15, 5, 60, new ArrayList<>(List.of(
+                unique(powerpoint, "Combien d'idées principales faut-il idéalement par diapositive ?", List.of("Une seule", "Cinq ou six", "Toutes celles du sujet"), 0),
+                trueFalse(powerpoint, "Une police trop petite rend la diapositive difficile à lire au fond de la salle.", true),
+                unique(powerpoint, "Quelle touche lance le diaporama depuis le début ?", List.of("F5", "Ctrl + S", "Échap"), 0),
+                unique(powerpoint, "Pour rendre un chiffre clé plus parlant, on peut…",
+                        List.of("Ajouter un graphique simple", "Écrire tout le tableau en petit", "Mettre trois animations"), 0),
+                trueFalse(powerpoint, "Pendant la présentation, il vaut mieux lire ses diapositives mot à mot.", false)))));
 
         // Inscriptions, progression, examens et certificats de démonstration
         Enrollment e;
@@ -597,7 +614,8 @@ public class DemoDataSeeder implements ApplicationRunner {
         complete(e, 4);
         e = enroll(kossi, securite, EnrollmentStatus.ACTIF, "2026-07-20");
         complete(e, 5);
-        certificate("ALUNI-2026-000121", kossi, securite, CertType.ATTESTATION, null, "2026-08-02", CertificateStatus.VALIDE);
+        attempt(kossi, examByCourse.get(securite.getSlug()), 1, 90, 0, at("2026-08-01"));
+        certificate("ALUNI-2026-000121", kossi, securite, CertType.COMPETENCE, 90, "2026-08-02", CertificateStatus.VALIDE);
 
         e = enroll(essi, initiation, EnrollmentStatus.ACTIF, "2026-08-15");
         complete(e, 12);
@@ -612,7 +630,6 @@ public class DemoDataSeeder implements ApplicationRunner {
         complete(e, 5);
         attempt(afi, examByCourse.get(entrepreneuriat.getSlug()), 1, 78, 2, at("2026-09-20"));
         certificate("ALUNI-2026-000131", afi, entrepreneuriat, CertType.COMPETENCE, 78, "2026-09-21", CertificateStatus.VALIDE);
-        certificate("ALUNI-2026-000130", afi, entrepreneuriat, CertType.ATTESTATION, null, "2026-09-12", CertificateStatus.VALIDE);
 
         e = enroll(kodjo, design, EnrollmentStatus.ACTIF, "2026-06-03");
         complete(e, 7);
@@ -640,7 +657,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         // Notifications de l'apprenant de démonstration
         notification(kossi, NotificationType.EXAM, "Examen final programmé", "L'examen « Initiation à l'informatique » aura lieu en salle dans une semaine, de 9 h à 11 h. Une seule tentative : soyez à l'heure.", "/apprenant/examens", "2026-10-10", false);
         notification(kossi, NotificationType.LESSON, "Nouvelle leçon", "Une nouvelle leçon « Mise en page avec Flexbox » a été ajoutée.", "/apprendre/site-web-html-css", "2026-10-08", false);
-        notification(kossi, NotificationType.CERTIFICATE, "Certificat disponible", "Votre attestation « Sécurité en ligne » est prête à être téléchargée.", "/apprenant/certificats/ALUNI-2026-000121", "2026-08-02", true);
+        notification(kossi, NotificationType.CERTIFICATE, "Certificat disponible", "Votre certificat « Sécurité en ligne » est prêt à être téléchargé.", "/apprenant/certificats/ALUNI-2026-000121", "2026-08-02", true);
 
         seedSiteContent();
     }
@@ -733,9 +750,9 @@ public class DemoDataSeeder implements ApplicationRunner {
                 { "J'ai oublié mon mot de passe, que faire ?", "Cliquez sur « Mot de passe oublié » sur la page de connexion pour recevoir un code par SMS ou par e-mail et choisir un nouveau mot de passe. Si vous ne recevez rien, contactez l'Académie : l'administration vous communique un mot de passe provisoire, à changer ensuite dans « Mon profil ».", "Compte" },
                 { "Puis-je suivre les cours sur mon téléphone ?", "Oui, la plateforme fonctionne sur ordinateur, tablette et smartphone. Votre progression est enregistrée automatiquement.", "Formations" },
                 { "Puis-je suivre une formation en ligne ou en salle ?", "Les jeunes du CDEJ Lumière de Kpévé suivent les formations en salle, dans les salles informatiques de l'Académie, avec un formateur à leur disposition. Les jeunes des autres CDEJ, les particuliers et toute personne qui souhaite une certification suivent en ligne les cours déposés par les formateurs, à leur rythme. Le formateur peut adapter la modalité si besoin.", "Formations" },
-                { "Comment se passe l'examen final ?", "En ligne, l'examen s'ouvre dès que tous les modules sont terminés et vous pouvez le repasser jusqu'à la réussite. En salle, il a lieu lors de la session programmée par le formateur, en une seule tentative. Dans les deux cas, il est corrigé automatiquement et vous connaissez votre résultat tout de suite.", "Examens" },
+                { "Comment se passe l'examen final ?", "En ligne, l'examen s'ouvre dès que tous les modules sont terminés et vous pouvez le repasser jusqu'à la réussite. En salle, il a lieu lors de la session programmée par le formateur, en une seule tentative. Dans les deux cas, il est corrigé automatiquement et sa réussite vous donne le certificat de compétence.", "Examens" },
                 { "Que se passe-t-il si la connexion ou le courant coupe pendant un examen ?", "Vos réponses sont enregistrées automatiquement à chaque clic. Reconnectez-vous et reprenez l'examen là où vous l'avez laissé, dans la limite du temps restant.", "Examens" },
-                { "Quelle est la différence entre attestation et certificat ?", "L'attestation de suivi prouve que vous avez terminé toutes les leçons de la formation. Le certificat de compétence prouve que vous avez réussi l'examen final. Les deux se téléchargent en PDF depuis votre espace et portent un QR code de vérification.", "Certificats" },
+                { "Quel document reçoit-on à la fin d'une formation ?", "Un certificat de compétence, délivré quand vous réussissez l'examen final, que vous ayez suivi la formation en ligne ou en salle. Terminer les modules ne suffit pas : l'examen est obligatoire. Le certificat se télécharge en PDF depuis votre espace et porte un QR code de vérification.", "Certificats" },
                 { "Comment un employeur peut-il vérifier mon certificat ?", "Il lui suffit de scanner le QR code imprimé sur le certificat ou de saisir son numéro sur la page « Vérifier un certificat ».", "Certificats" },
                 { "Qui sont les formateurs de l'Académie ?", "Les formateurs sont recrutés directement par le CDEJ Lumière de Kpévé. Ils forment les jeunes du centre dans les salles informatiques et déposent leurs cours sur la plateforme pour les apprenants en ligne. Il n'y a pas d'inscription formateur sur le site : l'administration crée le compte de chaque formateur recruté.", "Formateurs" } };
         for (int i = 0; i < items.length; i++) {

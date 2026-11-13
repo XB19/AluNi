@@ -77,8 +77,6 @@ export default function Catalog() {
         options={categories.map((c) => ({ id: c.id, label: c.name, count: all.filter((x) => x.category === c.id).length }))} />
       <FilterGroup title="Niveau" selected={filters.niveau} onToggle={(v) => toggle('niveau', v)}
         options={LEVELS.map((l) => ({ id: l, label: l, count: all.filter((x) => x.level === l).length }))} />
-      <FilterGroup title="Type de certification" selected={filters.certif} onToggle={(v) => toggle('certif', v)}
-        options={Object.entries(CERT_TYPES).map(([id, t]) => ({ id, label: t.label }))} />
       <FilterGroup title="Durée" selected={filters.duree} onToggle={(v) => toggle('duree', v)} options={DURATIONS} />
     </>
   )

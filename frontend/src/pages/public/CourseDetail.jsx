@@ -253,7 +253,7 @@ export default function CourseDetail() {
                   <Award className={cx('size-7', t === 'competence' ? 'text-brand-700' : 'text-gold-700')} />
                   <p className="mt-3 font-bold">{CERT_TYPES[t]?.label}</p>
                   <p className="mt-1 text-sm text-gray-700">
-                    {t === 'competence' ? `Délivré après réussite de l'examen final${course.exam ? ` (note minimale ${course.exam.passMark}/100)` : ''}.` : 'Délivrée automatiquement quand toutes les leçons sont terminées.'}
+                    {t === 'competence' ? `Délivré quand vous réussissez l'examen final${course.exam ? ` (note minimale ${course.exam.passMark}/100)` : ''}, que vous suiviez la formation en ligne ou en salle.` : 'Délivrée automatiquement quand toutes les leçons sont terminées.'}
                   </p>
                 </div>
               ))}

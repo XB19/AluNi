@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import {
-  Archive, ArrowDown, ArrowLeft, ArrowUp, Bold, CalendarClock, CheckCircle2, Circle, Eye, FileText, FileUp, Heading2, ListChecks, ImagePlus, Italic, Link2, List, Plus, Save, Send, Sparkles, Trash2, Upload,
+  Archive, ArrowDown, Award, ArrowLeft, ArrowUp, Bold, CalendarClock, CheckCircle2, Circle, Eye, FileText, FileUp, Heading2, ListChecks, ImagePlus, Italic, Link2, List, Plus, Save, Send, Sparkles, Trash2, Upload,
 } from 'lucide-react'
 import { CERT_TYPES, LEARNING_MODES, LESSON_TYPES, LEVELS, QUESTION_TYPES, formatSession } from '../../data/constants'
 import { api, fileUrl, qs } from '../../api/client'
@@ -221,9 +221,6 @@ function ExamTab({ course }) {
   const [importMsg, setImportMsg] = useState('')
   useEffect(() => { if (settings.data) setS(settings.data) }, [settings.data])
 
-  if (!course.certTypes.includes('competence')) {
-    return <p className="card p-6 text-gray-600">Cette formation ne délivre qu'une attestation de suivi : aucun examen final n'est nécessaire.</p>
-  }
   if (!s || bank.loading) return <Loading />
   const pool = (bank.data ?? []).filter((q) => !q.module)
   const set = (patch) => { setS({ ...s, ...patch }); setSaved(false) }
@@ -443,14 +440,14 @@ export default function CourseEditor() {
           <Field label="Compétences (séparées par une virgule)">
             <input value={c.skills.join(', ')} onChange={(e) => update({ skills: e.target.value.split(',').map((s) => s.trimStart()) })} className="input" placeholder="Excel, Formules, Graphiques" />
           </Field>
-          <fieldset>
-            <legend className="label">Certification délivrée</legend>
-            {Object.entries(CERT_TYPES).map(([k, v]) => (
-              <label key={k} className="flex items-center gap-3 py-1.5 text-[15px]">
-                <input type="checkbox" checked={c.certTypes.includes(k)} onChange={() => update({ certTypes: c.certTypes.includes(k) ? c.certTypes.filter((x) => x !== k) : [...c.certTypes, k] })} className="size-4.5 accent-brand-600" />{v.label}
-              </label>
-            ))}
-          </fieldset>
+          <div>
+            <p className="label">Certification délivrée</p>
+            {/* Un seul document : le certificat de compétence, à la réussite de l'examen final (en ligne comme en salle) */}
+            <p className="flex items-start gap-2 rounded-xl bg-brand-50 p-3 text-sm text-brand-900">
+              <Award className="mt-0.5 size-4.5 shrink-0 text-brand-700" />
+              <span><strong>{CERT_TYPES.competence.label}</strong>, délivré à l'apprenant qui réussit l'examen final (onglet 4), en ligne comme en salle.</span>
+            </p>
+          </div>
           <fieldset>
             <legend className="label">Mode d'inscription</legend>
             {[['libre', 'Libre (accès immédiat)'], ['validation', "Soumise à validation de l'Académie"]].map(([k, v]) => (
@@ -548,10 +545,8 @@ export default function CourseEditor() {
           </div>
           {isNew ? (
             <p className="card p-6 text-gray-600">Enregistrez d'abord la formation pour programmer l'examen final.</p>
-          ) : c.certTypes.includes('competence') ? (
-            <RoomSessions course={c} />
           ) : (
-            <p className="card p-6 text-gray-600">Cette formation ne délivre qu'une attestation de suivi : pas d'examen final à programmer.</p>
+            <RoomSessions course={c} />
           )}
         </div>
       )}
@@ -586,9 +581,7 @@ export default function CourseEditor() {
                 <li className={cx('flex items-center gap-3', c.support ? 'text-ink' : 'text-gray-500')}>
                   {c.support ? <CheckCircle2 className="size-5 text-brand-600" /> : <Circle className="size-5 text-gray-300" />}Cours en salle : support PDF déposé (conseillé, onglet 3)
                 </li>
-                {c.certTypes.includes('competence') && (
-                  <li className="flex items-center gap-3 text-gray-500"><Circle className="size-5 text-gray-300" />Examen final configuré avec ses questions (onglet 4)</li>
-                )}
+                <li className="flex items-center gap-3 text-ink"><Circle className="size-5 text-gray-300" />Examen final configuré avec ses questions (obligatoire, onglet 4) : sa réussite donne le certificat</li>
               </ul>
               <Button className="mt-6" disabled={isNew || !checks.slice(0, 3).every((ch) => ch.ok)} onClick={publish}><Send className="size-4" />Publier la formation</Button>
             </>

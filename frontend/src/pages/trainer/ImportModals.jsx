@@ -253,7 +253,8 @@ export function ImportQuestionsModal({ open, onClose, courses = [], fixedCourse,
   }, [courses, fixedCourse, courseId])
   const course = useApi(open && courseId ? `/trainer/courses/${courseId}` : null)
   const modules = course.data?.modules ?? []
-  const competence = course.data?.certTypes?.includes('competence')
+  // Toute formation a un examen final : les questions importées peuvent y être ajoutées
+  const competence = true
 
   const reset = () => { setFile(null); setPreview(null); setError(null) }
   const close = () => { reset(); onClose() }
