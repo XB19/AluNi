@@ -6,6 +6,7 @@ import { Avatar, Button, SectionTitle } from '../../components/ui'
 import { CountUp, Reveal } from '../../components/Motion'
 import { useStats } from './Home'
 import logo from '../../assets/logo-cdej.jpg'
+import Backdrop from '../../components/Backdrop'
 
 export default function About() {
   const academy = useAcademy()
@@ -17,15 +18,16 @@ export default function About() {
   return (
     <>
       <section className="relative overflow-hidden bg-brand-800 text-white">
+        <Backdrop tone="hero" position="center 45%" />
         <div className="animate-float pointer-events-none absolute -top-24 -right-24 size-96 rounded-full bg-flame-500/20 blur-3xl" />
-        <div className="container-page grid items-center gap-10 py-14 lg:grid-cols-[1.3fr_1fr] lg:py-20">
+        <div className="container-page relative grid items-center gap-10 py-14 lg:grid-cols-[1.3fr_1fr] lg:py-20">
           <div className="animate-fade-up">
             <p className="mb-3 text-sm font-bold tracking-wide text-flame-400 uppercase">À propos de l'Académie</p>
             <h1 className="text-3xl leading-tight font-extrabold sm:text-5xl">Allumer la lumière du numérique dans la vie de chaque jeune</h1>
             <p className="mt-5 max-w-xl text-lg text-brand-100">
-              L'{academy.name} ({academy.short}) est une initiative du {academy.center}, centre {academy.code}. Elle forme les
-              jeunes aux compétences numériques en salle, dans un espace informatique équipé, et en ligne sur sa plateforme, puis
-              certifie leurs acquis par des certificats vérifiables.
+              L'{academy.name} ({academy.short}) est une initiative du {academy.center}, centre {academy.code}. Dans ses salles
+              informatiques, les jeunes du CDEJ apprennent avec des formateurs ; sur sa plateforme, chacun peut suivre leurs cours
+              en ligne et obtenir une certification vérifiable.
             </p>
           </div>
           {/* Le CDEJ porte le projet : son logo figure ici, celui d'ALuNI partout ailleurs */}
@@ -55,11 +57,11 @@ export default function About() {
       <section className="bg-gray-50 py-16">
         <div className="container-page grid gap-10 lg:grid-cols-2 lg:items-center">
           <Reveal>
-            <SectionTitle eyebrow="Notre histoire" title="D'une salle informatique à une académie en ligne" />
+            <SectionTitle eyebrow="Notre histoire" title="Des salles informatiques à une académie en ligne" />
             <div className="space-y-4 text-lg leading-relaxed text-gray-700">
-              <p>Le CDEJ {academy.code} accompagne depuis des années les enfants et les jeunes de Kpévé et ses environs. Face à l'importance croissante du numérique, le centre a équipé une salle informatique dédiée à leur formation.</p>
+              <p>Le CDEJ {academy.code} accompagne depuis des années les enfants et les jeunes de Kpévé et ses environs. Face à l'importance croissante du numérique, le centre a équipé des salles informatiques dédiées à leur formation.</p>
               <p>Pour aller plus loin, l'Académie ouvre aujourd'hui sa plateforme aux jeunes des autres CDEJ et à toute personne souhaitant se former ou faire certifier ses compétences.</p>
-              <p>Chaque formation se suit en ligne, à son rythme, ou en salle avec le formateur. L'examen final est corrigé automatiquement et la réussite donne droit à un certificat que tout employeur peut vérifier.</p>
+              <p>Les jeunes du CDEJ sont formés en salle, avec des formateurs recrutés par le centre. Les particuliers et tous ceux qui souhaitent une certification suivent en ligne les cours déposés par ces formateurs. Dans les deux cas, l'examen final est corrigé automatiquement et la réussite donne droit à un certificat que tout employeur peut vérifier.</p>
             </div>
           </Reveal>
           <div className="grid grid-cols-2 gap-4">
@@ -75,7 +77,7 @@ export default function About() {
 
       {trainers.length > 0 && (
         <section className="container-page py-16">
-          <Reveal><SectionTitle eyebrow="L'équipe" title="Les formateurs de l'Académie" subtitle="Des professionnels passionnés, choisis par l'Académie pour accompagner les jeunes." /></Reveal>
+          <Reveal><SectionTitle eyebrow="L'équipe" title="Les formateurs de l'Académie" subtitle="Recrutés par le CDEJ, ils forment les jeunes en salle et préparent les cours en ligne de la plateforme." /></Reveal>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {trainers.map((t, i) => (
               <Reveal key={t.id} delay={(i % 4) * 100} className="group rounded-2xl border border-gray-200 p-6 text-center transition duration-300 hover:-translate-y-1 hover:shadow-lg">

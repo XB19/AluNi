@@ -9,6 +9,7 @@ import { CategoryIcon, Logo } from '../components/CourseCard'
 import { PageLoader } from '../components/PageLoader'
 import { BackToTop, useScrolled } from '../components/Motion'
 import Assistant from '../components/Assistant'
+import Backdrop from '../components/Backdrop'
 import { Avatar, Button, cx } from '../components/ui'
 import { FacebookIcon, WhatsAppIcon, YoutubeIcon } from '../components/BrandIcons'
 import { fileUrl } from '../api/client'
@@ -146,9 +147,9 @@ function Header({ categories }) {
         <div className="container-page flex h-9 items-center justify-between">
           <div className="flex items-center gap-5">
             <span className="font-semibold text-white">Pour les apprenants</span>
-            {(!user || user.role === 'formateur') && (
-              <Link to={user ? '/formateur' : '/contact?sujet=formateur'} className="hover:text-white">Pour les formateurs</Link>
-            )}
+            {/* Formateurs recrutés par le CDEJ : accès direct à leur espace une fois connectés, pas de recrutement en ligne */}
+            {user?.role === 'formateur' && <Link to="/formateur" className="hover:text-white">Espace formateur</Link>}
+            <Link to="/verifier" className="hover:text-white">Vérifier un certificat</Link>
             <Link to="/a-propos" className="hover:text-white">CDEJ {academy.code}</Link>
           </div>
           <div className="flex items-center gap-5">
@@ -243,8 +244,9 @@ function Footer({ categories }) {
     { Icon: YoutubeIcon, label: 'YouTube', href: academy.youtube },
   ].filter((s) => s.href)
   return (
-    <footer className="bg-brand-950 text-brand-100">
-      <div className="container-page grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.2fr]">
+    <footer className="relative overflow-hidden bg-brand-950 text-brand-100">
+      <Backdrop position="center 60%" />
+      <div className="container-page relative grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.2fr]">
         <div>
           <Logo light className="h-16" />
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-brand-200">
@@ -273,7 +275,6 @@ function Footer({ categories }) {
             <li><Link to="/a-propos" className="hover:text-white">À propos</Link></li>
             <li><Link to="/actualites" className="hover:text-white">Actualités & événements</Link></li>
             <li><Link to="/verifier" className="hover:text-white">Vérifier un certificat</Link></li>
-            {!user && <li><Link to="/contact?sujet=formateur" className="hover:text-white">Devenir formateur</Link></li>}
             <li><Link to="/faq" className="hover:text-white">Questions fréquentes</Link></li>
             <li><Link to="/contact" className="hover:text-white">Contact</Link></li>
           </ul>
@@ -288,7 +289,7 @@ function Footer({ categories }) {
           </ul>
         </div>
       </div>
-      <div className="border-t border-white/10">
+      <div className="relative border-t border-white/10">
         <div className="container-page flex flex-col gap-2 py-5 text-xs text-brand-300 sm:flex-row sm:justify-between">
           <p>© {new Date().getFullYear()} {academy.short} – {academy.name}, CDEJ {academy.code}. Tous droits réservés.</p>
           <p>Formations numériques et certifications vérifiables</p>

@@ -115,6 +115,13 @@
 .animate-marquee { animation: marquee 40s linear infinite; }
 .animate-marquee:hover { animation-play-state: paused; }
 
+/* Curseur de la machine à écrire (grand titre de l'accueil) : clignote quand la frappe est à l'arrêt */
+@keyframes caret-blink {
+  0%, 45% { opacity: 1; }
+  55%, 100% { opacity: 0; }
+}
+.animate-caret { animation: caret-blink 1s ease-in-out infinite; }
+
 .skeleton {
   background: linear-gradient(90deg, #f1f3f2 0px, #e6e9e7 120px, #f1f3f2 240px);
   background-size: 800px 100%;

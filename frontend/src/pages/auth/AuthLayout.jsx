@@ -1,11 +1,13 @@
 import { Link } from 'react-router'
 import { Award, CheckCircle2, Smartphone, Users } from 'lucide-react'
 import { Logo } from '../../components/CourseCard'
+import Backdrop from '../../components/Backdrop'
 
 export default function AuthLayout({ title, subtitle, children }) {
   return (
     <div className="grid min-h-screen lg:grid-cols-[1fr_1.1fr]">
       <aside className="relative hidden overflow-hidden bg-gradient-to-br from-brand-700 to-brand-900 p-12 text-white lg:flex lg:flex-col">
+        <Backdrop tone="hero" position="40% 50%" />
         <div className="pointer-events-none absolute -right-20 -bottom-20 size-96 rounded-full bg-flame-500/20 blur-3xl" />
         <Link to="/" className="relative"><Logo light className="h-16" /></Link>
         <div className="relative my-auto max-w-md">
@@ -13,9 +15,9 @@ export default function AuthLayout({ title, subtitle, children }) {
           <ul className="mt-8 space-y-5">
             {[
               { icon: CheckCircle2, text: 'Des formations pratiques, du niveau débutant au niveau avancé' },
-              { icon: Smartphone, text: "En ligne à votre rythme ou en salle à l'Académie, sur ordinateur ou téléphone" },
+              { icon: Smartphone, text: 'En ligne à votre rythme, sur ordinateur ou téléphone, avec les cours de nos formateurs' },
               { icon: Award, text: 'Des certificats en PDF, vérifiables en ligne grâce à leur QR code' },
-              { icon: Users, text: "L'accompagnement des formateurs de l'Académie" },
+              { icon: Users, text: "Pour les jeunes du CDEJ : des formateurs à leurs côtés en salle informatique" },
             ].map(({ icon: Icon, text }) => (
               <li key={text} className="flex items-start gap-3 text-lg text-brand-50"><Icon className="mt-1 size-5 shrink-0 text-flame-400" />{text}</li>
             ))}

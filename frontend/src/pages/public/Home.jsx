@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { QRCodeSVG } from 'qrcode.react'
 import {
-  ArrowRight, Award, BadgeCheck, BookOpen, Building2, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, GraduationCap, Heart, HelpCircle,
+  ArrowRight, Award, BadgeCheck, BookOpen, Building2, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ClipboardCheck, Heart, HelpCircle,
   Laptop, Lightbulb, MessageCircleQuestion, ShieldCheck, Smartphone, User, UserPlus, Users, WifiOff,
 } from 'lucide-react'
 import { TESTIMONIALS, formatDate } from '../../data/constants'
@@ -13,6 +13,7 @@ import { HOME_BY_ROLE, useAuth } from '../../context/AuthContext'
 import { CategoryIcon, CourseCard } from '../../components/CourseCard'
 import { CountUp, CourseGridSkeleton, Reveal } from '../../components/Motion'
 import Certificate from '../../components/Certificate'
+import Backdrop from '../../components/Backdrop'
 import { openAssistant } from '../../components/Assistant'
 import { Avatar, Badge, Button, cx, SectionTitle } from '../../components/ui'
 import heroJpg from '../../assets/hero-apprenante.jpg'
@@ -33,9 +34,96 @@ export function useStats() {
 // Mots mis en valeur en orange dans le grand titre (le titre est modifiable par l'administrateur)
 const HIGHLIGHT = /(numériques?|formations?|certifications?|certificats?)/gi
 
-function highlight(text) {
-  return text.split(HIGHLIGHT).map((part, i) =>
-    i % 2 === 1 ? <span key={i} className="bg-[linear-gradient(transparent_64%,var(--color-flame-400)_64%,var(--color-flame-400)_92%,transparent_92%)] box-decoration-clone">{part}</span> : part,
+const MARKER = 'bg-[linear-gradient(transparent_64%,var(--color-flame-400)_64%,var(--color-flame-400)_92%,transparent_92%)]'
+
+// Rythme de la machine à écrire (ms) : frappe, temps de lecture, puis nouvelle frappe sans effacement
+const TYPE_MS = 62
+const HOLD_MS = 2400
+const RESTART_MS = 380
+// Lettres pas encore (re)tapées : une trace légère, jamais un vide
+const GHOST = 'opacity-[0.16]'
+
+/** Découpe le titre en caractères : ligne (1re phrase / suite) et mot mis en valeur ou non. */
+function titleChars(title) {
+  const [first, ...rest] = title.split('. ')
+  const lines = rest.length ? [`${first}.`, rest.join('. ')] : [first]
+  const chars = []
+  lines.forEach((line, l) => {
+    if (l > 0) chars.push({ br: true })
+    line.split(HIGHLIGHT).forEach((part, i) => {
+      for (const c of part) chars.push({ c, line: l, hl: i % 2 === 1 })
+    })
+  })
+  return chars
+}
+
+/**
+ * Grand titre tapé à la machine, en boucle continue : frappe, courte pause de lecture, puis le texte s'estompe en
+ * trace légère et la frappe repart aussitôt par-dessus. Le titre n'est jamais vide et la mise en page ne bouge pas.
+ * Le titre complet reste lisible par les lecteurs d'écran ; animation coupée si l'utilisateur réduit les mouvements.
+ */
+function TypewriterTitle({ title, className }) {
+  const chars = useMemo(() => titleChars(title), [title])
+  const letters = useMemo(() => chars.filter((ch) => !ch.br), [chars])
+  const total = letters.length
+  const still = useMemo(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches, [])
+  const [shown, setShown] = useState(still ? total : 0)
+  const [phase, setPhase] = useState(still ? 'still' : 'typing')
+
+  useEffect(() => {
+    if (still) return
+    let delay
+    let next
+    if (phase === 'typing') {
+      if (shown >= total) {
+        // Temps de lecture, puis le texte s'estompe d'un coup (sans effacement lettre par lettre)
+        delay = HOLD_MS
+        next = () => { setShown(0); setPhase('restart') }
+      } else {
+        // Petite respiration après la ponctuation et entre les mots, comme une vraie frappe
+        const prev = letters[shown - 1]?.c
+        delay = prev === '.' ? TYPE_MS * 6 : prev === ' ' ? TYPE_MS * 1.6 : TYPE_MS
+        next = () => setShown((n) => n + 1)
+      }
+    } else if (phase === 'restart') {
+      delay = RESTART_MS
+      next = () => setPhase('typing')
+    }
+    if (!next) return
+    const id = setTimeout(next, delay)
+    return () => clearTimeout(id)
+  }, [shown, phase, total, letters, still])
+
+  // Le titre peut changer (paramètres du site) : on repart du début
+  useEffect(() => { if (!still) { setShown(0); setPhase('typing') } }, [title, still])
+
+  const blinking = phase !== 'typing' || shown >= total || shown === 0
+  const caret = (
+    <span key="caret" className="relative" aria-hidden>
+      <span className={cx('absolute top-[0.1em] left-[0.04em] h-[0.9em] w-[0.08em] rounded-full bg-flame-500', blinking && 'animate-caret')} />
+    </span>
+  )
+
+  let index = 0
+  const out = []
+  if (!still && shown === 0) out.push(caret)
+  chars.forEach((ch, k) => {
+    if (ch.br) { out.push(<br key={k} />); return }
+    index += 1
+    const visible = index <= shown
+    out.push(
+      <span key={k} className={cx(
+        'transition-opacity ease-out', phase === 'restart' ? 'duration-300' : 'duration-150',
+        ch.line > 0 && 'text-brand-600', ch.hl && MARKER, !visible && GHOST,
+      )}>{ch.c}</span>,
+    )
+    if (!still && index === shown) out.push(caret)
+  })
+
+  return (
+    <h1 className={className} aria-label={title}>
+      <span aria-hidden>{out}</span>
+    </h1>
   )
 }
 
@@ -45,24 +133,14 @@ const stagger = (i, step = 90, columns = 4) => (i % columns) * step
 function Hero() {
   const { user } = useAuth()
   const s = useSettings()
-  const [first, ...rest] = (s['home.heroTitle'] ?? '').split('. ')
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-brand-50 to-white">
       <div className="pointer-events-none absolute -top-24 -right-24 size-[420px] rounded-full bg-flame-100/60 blur-3xl" />
       <div className="pointer-events-none absolute top-40 -left-32 size-[360px] rounded-full bg-brand-100/70 blur-3xl" />
       <div className="container-page relative grid items-center gap-12 py-12 lg:grid-cols-[1.1fr_1fr] lg:py-20">
         <div>
-          <h1 className="animate-fade-up text-[34px] leading-[1.1] font-extrabold tracking-tight text-ink sm:text-5xl lg:text-[56px]">
-            {rest.length ? (
-              <>
-                {highlight(first)}.
-                <br />
-                <span className="text-brand-600">{highlight(rest.join('. '))}</span>
-              </>
-            ) : (
-              highlight(first)
-            )}
-          </h1>
+          <TypewriterTitle title={s['home.heroTitle'] ?? ''}
+            className="animate-fade-up text-[34px] leading-[1.1] font-extrabold tracking-tight text-ink sm:text-5xl lg:text-[56px]" />
           <p className="animate-fade-up mt-5 max-w-xl text-lg leading-relaxed text-gray-700" style={{ '--delay': '120ms' }}>{s['home.heroSubtitle']}</p>
           <div className="animate-fade-up mt-8 flex flex-col gap-3 sm:flex-row" style={{ '--delay': '240ms' }}>
             <Button to={user ? HOME_BY_ROLE[user.role] : '/inscription'} size="lg" className="shadow-lg shadow-brand-600/20 hover:-translate-y-0.5">
@@ -219,7 +297,7 @@ function PopularCourses({ courses, loading, categories }) {
 function HowItWorks() {
   const steps = [
     { icon: UserPlus, title: 'Créez votre compte', text: 'Gratuitement, avec votre numéro de téléphone ou votre e-mail, en 2 minutes.' },
-    { icon: BookOpen, title: 'Suivez la formation', text: "En ligne à votre rythme, ou en salle à l'Académie avec votre formateur." },
+    { icon: BookOpen, title: 'Suivez la formation', text: "En salle avec un formateur (jeunes du CDEJ), ou en ligne avec les cours des formateurs, à votre rythme." },
     { icon: ClipboardCheck, title: "Passez l'examen final", text: 'Corrigé automatiquement : vous connaissez votre résultat tout de suite.' },
     { icon: Award, title: 'Recevez votre certificat', text: 'À télécharger en PDF, avec un QR code qui le rend vérifiable partout.' },
   ]
@@ -246,19 +324,18 @@ function HowItWorks() {
 
 function Audiences() {
   const { user } = useAuth()
-  // Connecté : plus d'invitation à créer un compte, on mène aux formations (ou à l'espace formateur)
+  // Connecté : plus d'invitation à créer un compte, on mène aux formations
   const learnerTo = user ? '/formations' : '/inscription'
-  // Les comptes formateurs sont créés par l'administration : on passe par le formulaire de contact
-  const trainerTo = user?.role === 'formateur' ? '/formateur' : '/contact?sujet=formateur'
+  // Les formateurs sont recrutés par le CDEJ (comptes créés par l'administration) : pas de carte « formateurs » ici
   const items = [
-    { icon: Heart, title: 'Jeunes du CDEJ Kpévé', text: "Les formations du programme du centre, suivies en salle à l'Académie avec votre formateur.", to: learnerTo, cta: user ? 'Voir les formations' : 'Commencer' },
-    { icon: Building2, title: 'Jeunes des autres CDEJ', text: "Formez-vous en ligne, à votre rythme, et obtenez votre certificat dès l'examen final réussi.", to: learnerTo, cta: user ? 'Voir les formations' : 'Commencer' },
-    { icon: User, title: 'Particuliers', text: 'Développez vos compétences en ligne ou faites certifier ce que vous savez déjà faire.', to: learnerTo, cta: user ? 'Voir les formations' : 'Commencer' },
-    { icon: GraduationCap, title: 'Formateurs', text: "Partagez votre savoir : l'Académie crée votre compte, vous publiez vos cours et accompagnez les apprenants.", to: trainerTo,
-      cta: user?.role === 'formateur' ? 'Mon espace formateur' : 'Nous contacter' },
+    { icon: Heart, title: 'Jeunes du CDEJ Kpévé', text: "Formés dans les salles informatiques de l'Académie, avec un formateur à leur disposition pour les guider.", to: learnerTo, cta: user ? 'Voir les formations' : 'Commencer' },
+    { icon: Building2, title: 'Jeunes des autres CDEJ', text: "Suivez en ligne les cours déposés par nos formateurs, à votre rythme, et obtenez votre certificat.", to: learnerTo, cta: user ? 'Voir les formations' : 'Commencer' },
+    { icon: User, title: 'Particuliers', text: "Formez-vous en ligne avec les cours de nos formateurs, ou faites certifier ce que vous savez déjà faire.", to: learnerTo, cta: user ? 'Voir les formations' : 'Commencer' },
+    { icon: BadgeCheck, title: 'Employeurs et écoles', text: "Un candidat vous présente un certificat ALuNI ? Vérifiez son authenticité en quelques secondes.", to: '/verifier', cta: 'Vérifier un certificat' },
   ]
   return (
     <section className="relative overflow-hidden bg-brand-900 py-16 text-white">
+      <Backdrop />
       <div className="pointer-events-none absolute -right-24 -bottom-24 size-96 rounded-full bg-flame-500/10 blur-3xl" />
       <div className="container-page relative">
         <Reveal className="mb-10 max-w-2xl">
@@ -349,10 +426,10 @@ function Vision() {
         </Reveal>
         <div className="grid gap-4 sm:grid-cols-2">
           {[
-            { icon: Lightbulb, title: 'Apprendre en pratiquant', text: "Des quiz et des exercices concrets dans chaque module, en salle ou à la maison." },
+            { icon: Lightbulb, title: 'Apprendre en pratiquant', text: "Des quiz et des exercices concrets dans chaque module, en salle comme en ligne." },
             { icon: Smartphone, title: 'Accessible partout', text: 'La plateforme fonctionne sur tous les téléphones, même avec une connexion modeste.' },
             { icon: WifiOff, title: 'Rien ne se perd', text: 'Progression et réponses enregistrées automatiquement, même en cas de coupure.' },
-            { icon: Users, title: 'Accompagnement humain', text: "Des formateurs présents à l'Académie pour vous aider et vous encourager." },
+            { icon: Users, title: 'Des formateurs en salle', text: "Recrutés par le CDEJ, ils accompagnent les jeunes du centre dans les salles informatiques de l'Académie." },
           ].map((v, i) => (
             <Reveal key={v.title} delay={stagger(i, 100, 2)} className="group rounded-2xl bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md">
               <span className="flex size-11 items-center justify-center rounded-xl bg-flame-50 transition duration-300 group-hover:scale-110 group-hover:bg-flame-100">
@@ -418,8 +495,9 @@ function Testimonials() {
   const arrow = 'flex size-12 items-center justify-center rounded-xl border border-white/80 bg-white text-brand-800 shadow-lg transition hover:bg-brand-50 active:scale-95 focus-visible:outline-2 focus-visible:outline-flame-400'
 
   return (
-    <section className="bg-brand-900 py-16" aria-roledescription="carrousel" aria-label="Témoignages">
-      <div className="container-page">
+    <section className="relative overflow-hidden bg-brand-900 py-16" aria-roledescription="carrousel" aria-label="Témoignages">
+      <Backdrop position="center 55%" />
+      <div className="container-page relative">
         <Reveal className="mb-10 text-center">
           <p className="mb-2 text-sm font-bold tracking-wide text-flame-400 uppercase">Témoignages</p>
           <h2 className="text-2xl font-extrabold text-white sm:text-3xl">Ils ont appris avec ALuNI</h2>
@@ -598,6 +676,7 @@ function FinalCta() {
   return (
     <section className="container-page pb-16">
       <Reveal className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-700 to-brand-600 px-6 py-12 text-center text-white sm:px-12">
+        <Backdrop tone="bright" />
         <div className="animate-float pointer-events-none absolute -top-16 -right-10 size-56 rounded-full bg-flame-500/30 blur-2xl" />
         <div className="animate-float pointer-events-none absolute -bottom-20 -left-10 size-56 rounded-full bg-white/10 blur-2xl" style={{ '--delay': '2s' }} />
         <h2 className="relative text-2xl font-extrabold sm:text-4xl">{user ? `Bon retour, ${user.firstName ?? user.name?.split(' ')[0] ?? ''} !` : 'Prêt à allumer votre avenir numérique ?'}</h2>

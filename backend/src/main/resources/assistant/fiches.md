@@ -25,10 +25,10 @@ Ouvrez la page [Connexion](/connexion) et saisissez votre numéro de téléphone
 pour : visiteur
 mots : ligne salle difference distance presentiel modalite domicile maison
 Chaque formation se suit de deux façons :
-- **En ligne** : les modules se débloquent au fur et à mesure, vous avancez à votre rythme sur ordinateur ou téléphone. L'examen final s'ouvre quand tous les modules sont terminés, et vous pouvez le repasser jusqu'à la réussite.
-- **En salle** : le formateur donne le cours à l'Académie. L'examen final a lieu pendant la session qu'il programme, en une seule tentative.
+- **En salle**, pour les jeunes du CDEJ Lumière de Kpévé : le cours a lieu dans les salles informatiques de l'Académie, avec un formateur à leur disposition. L'examen final a lieu pendant la session qu'il programme, en une seule tentative.
+- **En ligne**, pour les jeunes des autres CDEJ, les particuliers et tous ceux qui souhaitent une certification : vous suivez à votre rythme les cours déposés par les formateurs, sur ordinateur ou téléphone. L'examen final s'ouvre quand tous les modules sont terminés, et vous pouvez le repasser jusqu'à la réussite.
 
-Les jeunes du CDEJ de Kpévé suivent en principe en salle, les autres apprenants en ligne ; le formateur peut adapter la modalité.
+Le formateur peut adapter la modalité si besoin.
 
 ## Obtenir un certificat
 pour : visiteur
@@ -39,10 +39,10 @@ Deux documents peuvent être délivrés :
 
 Ils se téléchargent en PDF depuis votre espace et portent un QR code qui permet à un employeur de les [vérifier](/verifier). Pour commencer, [créez votre compte](/inscription) puis choisissez une [formation](/formations).
 
-## Devenir formateur
+## Les formateurs de l'Académie
 pour : visiteur, apprenant
-mots : devenir formateur enseigner professeur former donner cours animer
-Les comptes formateurs sont créés par l'Académie. Écrivez-nous depuis la [page Contact](/contact) en choisissant le sujet **Devenir formateur** : après un échange, l'administration crée votre compte et vous communique vos identifiants.
+mots : devenir formateur enseigner professeur former donner cours animer recrutement recrute postuler
+Les formateurs sont recrutés directement par le CDEJ Lumière de Kpévé. Ils forment les jeunes du centre dans les salles informatiques et déposent leurs cours sur la plateforme pour les apprenants en ligne. Il n'y a pas d'inscription formateur sur le site : l'administration crée le compte de chaque formateur recruté. Pour toute question, [contactez l'Académie](/contact).
 
 ## Choisir une formation
 pour : visiteur, apprenant

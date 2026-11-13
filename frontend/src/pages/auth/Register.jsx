@@ -124,8 +124,8 @@ function RegisterPage() {
               <Field label="Nom et code de votre CDEJ" error={errors.center}><input value={f.center} onChange={set('center')} className="input" placeholder="Ex. : CDEJ TG0212 Atakpamé" /></Field>
             )}
             <p className="rounded-xl bg-gray-50 p-3 text-sm text-gray-600">
-              Vous êtes formateur ? Votre compte est créé par l'administration de l'Académie :{' '}
-              <Link to="/contact?sujet=formateur" className="font-semibold text-brand-700 hover:underline">contactez-nous</Link>.
+              Formateurs : ils sont recrutés par le CDEJ et leur compte est créé par l'administration de l'Académie ; ils n'ont pas
+              besoin de s'inscrire ici.
             </p>
           </>
         )}

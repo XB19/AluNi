@@ -81,7 +81,7 @@ class AssistantTest extends IntegrationTest {
                 "En ligne ou en salle : quelle différence ?", "**En ligne ou en salle**",
                 "Comment obtenir un certificat ?", "**Obtenir un certificat**",
                 "J'ai oublié mon mot de passe", "Mot de passe oublié",
-                "Comment devenir formateur ?", "**Devenir formateur**"));
+                "Comment devenir formateur ?", "**Les formateurs de l'Académie**"));
         expected.put(learner, Map.of(
                 "Comment passer mon examen final ?", "**Passer l'examen final**",
                 "Où télécharger mon certificat ?", "**Télécharger mon certificat**",

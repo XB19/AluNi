@@ -97,7 +97,7 @@ Les tests d'intégration utilisent une base dédiée `aluni_test`, à créer une
 
 ## Fonctionnalités principales
 
-- **Comptes** : inscription par profil (CDEJ interne, autre CDEJ, particulier ; comptes formateurs créés par l'administration), connexion par téléphone ou e-mail, récupération par code (SMS / e-mail), import Excel de comptes.
+- **Comptes** : inscription par profil (CDEJ interne, autre CDEJ, particulier) ; les formateurs, recrutés par le CDEJ, ont un compte créé par l'administration (pas d'inscription formateur sur le site), connexion par téléphone ou e-mail, récupération par code (SMS / e-mail), import Excel de comptes.
 - **Formations** : modules et leçons (texte, vidéo, PDF, image), déblocage progressif, quiz d'entraînement corrigés automatiquement. Le formateur publie lui-même sa formation : elle est visible immédiatement dans le catalogue (l'administration peut l'archiver si besoin). Le formateur fournit les questions **et leurs réponses** (saisie ou import Word) : il n'a aucune copie à corriger.
 - **Import de documents** (espace formateur) :
   - *Cours* : un fichier Word (.docx/.doc), PowerPoint (.pptx/.ppt), PDF ou texte est découpé automatiquement en modules et leçons (titres « Titre 1 / Titre 2 » ou lignes « Module 1 : … / Leçon 1.1 : … », diapositives de section, taille des caractères pour les PDF). Texte, listes, tableaux, images et notes du présentateur sont repris ; le document original peut être joint.

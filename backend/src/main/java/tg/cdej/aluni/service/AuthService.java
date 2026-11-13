@@ -92,7 +92,7 @@ public class AuthService {
         // Les comptes formateurs sont créés par l'administration (Utilisateurs > Créer un compte)
         if ("formateur".equalsIgnoreCase(r.profile())) {
             throw ApiException.badRequest(
-                    "Les comptes formateurs sont créés par l'administration de l'Académie. Contactez-nous pour devenir formateur.");
+                    "Les formateurs sont recrutés par le CDEJ : leur compte est créé par l'administration de l'Académie.");
         }
         User u = new User();
         u.setFirstName(r.firstName().trim());
