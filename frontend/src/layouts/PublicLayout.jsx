@@ -10,6 +10,7 @@ import { PageLoader } from '../components/PageLoader'
 import { BackToTop, useScrolled } from '../components/Motion'
 import Assistant from '../components/Assistant'
 import Backdrop from '../components/Backdrop'
+import SearchBar from '../components/SearchPanel'
 import { Avatar, Button, cx } from '../components/ui'
 import { FacebookIcon, WhatsAppIcon, YoutubeIcon } from '../components/BrandIcons'
 import { fileUrl } from '../api/client'
@@ -21,32 +22,6 @@ const NAV = [
   { to: '/verifier', label: 'Vérifier un certificat' },
   { to: '/contact', label: 'Contact' },
 ]
-
-export function SearchBar({ className, autoFocus, onSubmitted }) {
-  const navigate = useNavigate()
-  const [q, setQ] = useState('')
-  const submit = (e) => {
-    e.preventDefault()
-    navigate(`/formations${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`)
-    onSubmitted?.()
-  }
-  return (
-    <form onSubmit={submit} className={cx('relative', className)} role="search">
-      <input
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        autoFocus={autoFocus}
-        type="search"
-        placeholder="Que voulez-vous apprendre ?"
-        aria-label="Rechercher une formation"
-        className="h-11 w-full rounded-full border border-gray-300 bg-white pr-12 pl-5 text-[15px] placeholder:text-gray-500 focus:border-brand-500 focus:ring-4 focus:ring-brand-100 focus:outline-none"
-      />
-      <button type="submit" aria-label="Rechercher" className="absolute top-1 right-1 flex size-9 items-center justify-center rounded-full bg-brand-600 text-white hover:bg-brand-700">
-        <Search className="size-4" />
-      </button>
-    </form>
-  )
-}
 
 function ExploreMenu({ categories }) {
   const [open, setOpen] = useState(false)
@@ -200,7 +175,7 @@ function Header({ categories }) {
               <button onClick={() => setDrawer(false)} className="rounded-lg p-2 hover:bg-gray-100" aria-label="Fermer le menu"><X className="size-6" /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
-              <SearchBar onSubmitted={() => setDrawer(false)} />
+              <SearchBar inline onSubmitted={() => setDrawer(false)} />
               <nav className="mt-4 flex flex-col">
                 <NavLink to="/" end className="rounded-lg px-3 py-3 text-base font-semibold hover:bg-gray-50">Accueil</NavLink>
                 {NAV.map((n) => (

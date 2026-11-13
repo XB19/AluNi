@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import {
   Award, BookOpen, Check, ChevronDown, ChevronRight, Clock, FileText, Hourglass, Image, Layers, ListChecks,
@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext'
 import { CourseCard, CourseCover } from '../../components/CourseCard'
 import { Avatar, Badge, Button, cx, ErrorState, Loading, Toast } from '../../components/ui'
 import NotFound from './NotFound'
+import { rememberCourse } from '../../components/SearchPanel'
 
 export const LESSON_ICONS = { video: PlayCircle, texte: FileText, pdf: BookOpen, image: Image }
 export const LESSON_LABELS = LESSON_TYPES
@@ -94,6 +95,9 @@ export default function CourseDetail() {
   const enrollments = useApi(user?.role === 'apprenant' ? '/me/enrollments' : null)
   const related = useApi('/courses').data ?? []
   const [toast, setToast] = useState('')
+  // Formation ouverte : proposée ensuite dans « Récemment consultées » de la recherche
+  const found = state.data?.slug
+  useEffect(() => { if (found) rememberCourse(found) }, [found])
 
   if (state.loading && !state.data) return <Loading className="min-h-[60vh]" />
   if (state.error?.status === 404) return <NotFound />
